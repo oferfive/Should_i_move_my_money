@@ -4,7 +4,6 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 const IsraeliInvestmentAnalyzer = () => {
   const [deposits, setDeposits] = useState([{ year: '', amount: '' }]);
   const [currentValue, setCurrentValue] = useState('');
-  const [currentYield, setCurrentYield] = useState('');
   const [currentCommission, setCurrentCommission] = useState('');
   const [newYield, setNewYield] = useState('');
   const [newCommission, setNewCommission] = useState('');
@@ -12,13 +11,23 @@ const IsraeliInvestmentAnalyzer = () => {
   const [yearsToProject, setYearsToProject] = useState('');
   const [results, setResults] = useState(null);
   const [errors, setErrors] = useState({});
-
+  
   const taxRate = 0.25;
   const cpiData = {
     2015: 100.0, 2016: 100.0, 2017: 100.2, 2018: 101.0, 2019: 101.9,
     2020: 101.3, 2021: 102.8, 2022: 107.3, 2023: 111.8, 2024: 113.8
   };
 
+  const calculateCurrentYield = (deposits, currentValue) => {
+    const totalDeposited = deposits.reduce((sum, deposit) => sum + parseFloat(deposit.amount), 0);
+    const years = Math.max(...deposits.map(d => d.year)) - Math.min(...deposits.map(d => d.year)) + 1;
+    
+    const overallYield = (currentValue - totalDeposited) / totalDeposited;
+    const annualYield = (1 + overallYield) ** (1 / years) - 1;
+  
+    return annualYield;
+  };
+  
   const handleAddDeposit = () => {
     setDeposits([...deposits, { year: '', amount: '' }]);
   };
@@ -77,7 +86,6 @@ const IsraeliInvestmentAnalyzer = () => {
     }
 
     if (!currentValue) newErrors.currentValue = "Current value is required";
-    if (!currentYield) newErrors.currentYield = "Current yield is required";
     if (!currentCommission) newErrors.currentCommission = "Current commission is required";
     if (!newYield) newErrors.newYield = "New yield is required";
     if (!newCommission) newErrors.newCommission = "New commission is required";
@@ -92,16 +100,18 @@ const IsraeliInvestmentAnalyzer = () => {
     if (!validateInputs()) {
       return; // Stop if there are validation errors
     }
-
+  
     // Convert string inputs to numbers
     const currentValueNum = parseFloat(currentValue);
-    const currentYieldNum = parseFloat(currentYield) / 100;
     const currentCommissionNum = parseFloat(currentCommission) / 100;
     const newYieldNum = parseFloat(newYield) / 100;
     const newCommissionNum = parseFloat(newCommission) / 100;
     const newTransactionFeeNum = parseFloat(newTransactionFee) / 100;
     const yearsToProjectNum = parseInt(yearsToProject);
-
+  
+    // Calculate current yield independently
+    const currentYieldNum = calculateCurrentYield(deposits, currentValueNum);
+  
     // Calculate current investment projection
     const currentProjection = projectInvestment(
       currentValueNum,
@@ -110,7 +120,7 @@ const IsraeliInvestmentAnalyzer = () => {
       0,
       yearsToProjectNum
     );
-
+  
     // Calculate new investment projection
     const taxAmount = calculateTax(currentValueNum, adjustForInflation(deposits));
     const amountAfterTax = currentValueNum - taxAmount;
@@ -121,17 +131,17 @@ const IsraeliInvestmentAnalyzer = () => {
       newTransactionFeeNum,
       yearsToProjectNum
     );
-
+  
     // Find break-even point
     const breakEvenYear = findBreakEvenPoint(currentProjection, newProjection);
-
+  
     // Prepare chart data
     const chartData = currentProjection.map((value, index) => ({
       year: index,
       current: value,
       new: newProjection[index]
     }));
-
+  
     // Set results
     setResults({
       currentFinalValue: currentProjection[yearsToProjectNum],
@@ -183,14 +193,6 @@ const IsraeliInvestmentAnalyzer = () => {
           style={{ marginRight: '10px' }}
         />
         {errors.currentValue && <span style={{ color: 'red', display: 'block' }}>{errors.currentValue}</span>}
-        <input
-          type="number"
-          placeholder="Current Yield (%)"
-          value={currentYield}
-          onChange={(e) => setCurrentYield(e.target.value)}
-          style={{ marginRight: '10px' }}
-        />
-        {errors.currentYield && <span style={{ color: 'red', display: 'block' }}>{errors.currentYield}</span>}
         <input
           type="number"
           placeholder="Current Commission (%)"
