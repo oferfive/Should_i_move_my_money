@@ -122,7 +122,8 @@ const IsraeliInvestmentAnalyzer = () => {
     );
   
     // Calculate new investment projection
-    const taxAmount = calculateTax(currentValueNum, adjustForInflation(deposits));
+    const adjustedDeposits = adjustForInflation(deposits);
+    const taxAmount = calculateTax(currentValueNum, adjustedDeposits);
     const amountAfterTax = currentValueNum - taxAmount;
     const newProjection = projectInvestment(
       amountAfterTax,
@@ -131,6 +132,11 @@ const IsraeliInvestmentAnalyzer = () => {
       newTransactionFeeNum,
       yearsToProjectNum
     );
+  
+    // Calculate expected real gain and available money for new investment
+    const adjustedTotalDeposited = adjustedDeposits.reduce((sum, deposit) => sum + deposit.amount, 0);
+    const realGain = currentValueNum - adjustedTotalDeposited;
+    const availableMoneyForNewInvestment = currentValueNum - taxAmount;
   
     // Find break-even point
     const breakEvenYear = findBreakEvenPoint(currentProjection, newProjection);
@@ -148,6 +154,9 @@ const IsraeliInvestmentAnalyzer = () => {
       newFinalValue: newProjection[yearsToProjectNum],
       breakEvenYear,
       chartData,
+      realGain,
+      taxAmount,
+      availableMoneyForNewInvestment,
       recommendation: newProjection[yearsToProjectNum] > currentProjection[yearsToProjectNum]
         ? "Consider moving to the new investment mechanism."
         : "Stay with the current investment mechanism."
@@ -156,7 +165,7 @@ const IsraeliInvestmentAnalyzer = () => {
 
   return (
     <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1 style={{ fontSize: '24px', marginBottom: '20px' }}>Israeli Investment Analyzer</h1>
+      <h1 style={{ fontSize: '24px', marginBottom: '20px' }}>Should I move my money?</h1>
       
       <div style={{ marginBottom: '20px' }}>
         <h2>Deposits</h2>
@@ -242,26 +251,31 @@ const IsraeliInvestmentAnalyzer = () => {
       <button onClick={analyzeInvestment} style={{ marginBottom: '20px' }}>Analyze</button>
 
       {results && (
-        <div>
-          <h2>Results</h2>
-          <p>Current Investment Value after {yearsToProject} years: ₪{results.currentFinalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-          <p>New Investment Value after {yearsToProject} years: ₪{results.newFinalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-          <p>Break-even point: {results.breakEvenYear} years</p>
-          <p><strong>{results.recommendation}</strong></p>
-          
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={results.chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="year" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="current" stroke="#8884d8" name="Current Investment" />
-              <Line type="monotone" dataKey="new" stroke="#82ca9d" name="New Investment" />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+  <div>
+    <h2>Results</h2>
+    <p>Current Investment Value after {yearsToProject} years: ₪{results.currentFinalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+    <p>New Investment Value after {yearsToProject} years: ₪{results.newFinalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+    <p>Break-even point: {results.breakEvenYear} years</p>
+    <p><strong>{results.recommendation}</strong></p>
+    
+    <ResponsiveContainer width="100%" height={300}>
+      <LineChart data={results.chartData}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="year" />
+        <YAxis />
+        <Tooltip />
+        <Legend />
+        <Line type="monotone" dataKey="current" stroke="#8884d8" name="Current Investment" />
+        <Line type="monotone" dataKey="new" stroke="#82ca9d" name="New Investment" />
+      </LineChart>
+    </ResponsiveContainer>
+
+    <h3>Additional Information</h3>
+    <p>Expected Real Gain: ₪{results.realGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+    <p>Expected Capital Tax to be Paid: ₪{results.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+    <p>Expected Available Money for the New Investment: ₪{results.availableMoneyForNewInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+  </div>
+)}
     </div>
   );
 };
