@@ -5,33 +5,52 @@ const IsraeliInvestmentAnalyzer = () => {
   const [deposits, setDeposits] = useState([{ year: '', amount: '' }]);
   const [currentValue, setCurrentValue] = useState('');
   const [currentCommission, setCurrentCommission] = useState('');
+  const [currentInvestmentResults, setCurrentInvestmentResults] = useState(null);
+
   const [newYield, setNewYield] = useState('');
   const [newCommission, setNewCommission] = useState('');
   const [newTransactionFee, setNewTransactionFee] = useState('');
   const [yearsToProject, setYearsToProject] = useState('');
-  const [results, setResults] = useState(null);
+  const [comparisonResults, setComparisonResults] = useState(null);
+
   const [errors, setErrors] = useState({});
-  
+
   const taxRate = 0.25;
   const cpiData = {
     2015: 100.0, 2016: 100.0, 2017: 100.2, 2018: 101.0, 2019: 101.9,
     2020: 101.3, 2021: 102.8, 2022: 107.3, 2023: 111.8, 2024: 113.8
   };
 
-  const calculateCurrentYield = (deposits, currentValue) => {
-    const totalDeposited = deposits.reduce((sum, deposit) => sum + parseFloat(deposit.amount), 0);
-    const years = Math.max(...deposits.map(d => d.year)) - Math.min(...deposits.map(d => d.year)) + 1;
-    
-    const overallYield = (currentValue - totalDeposited) / totalDeposited;
-    const annualYield = (1 + overallYield) ** (1 / years) - 1;
-  
-    return annualYield;
-  };
-  
   const handleAddDeposit = () => {
     setDeposits([...deposits, { year: '', amount: '' }]);
   };
 
+  const validateCurrentInvestmentInputs = () => {
+    const newErrors = {};
+  
+    if (deposits.some(d => !d.year || !d.amount)) {
+      newErrors.deposits = "All deposit fields must be filled";
+    }
+  
+    if (!currentValue) newErrors.currentValue = "Current value is required";
+    if (!currentCommission) newErrors.currentCommission = "Current commission is required";
+  
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+  
+  const validateNewInvestmentInputs = () => {
+    const newErrors = {};
+  
+    if (!newYield) newErrors.newYield = "New yield is required";
+    if (!newCommission) newErrors.newCommission = "New commission is required";
+    if (!newTransactionFee) newErrors.newTransactionFee = "New transaction fee is required";
+    if (!yearsToProject) newErrors.yearsToProject = "Years to project is required";
+  
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+  
   const handleDepositChange = (index, field, value) => {
     const newDeposits = [...deposits];
     newDeposits[index][field] = value;
@@ -61,6 +80,23 @@ const IsraeliInvestmentAnalyzer = () => {
     return realGain > 0 ? realGain * taxRate : 0;
   };
 
+  const calculateCurrentYield = (deposits, currentValue) => {
+    const totalDeposited = deposits.reduce((sum, deposit) => sum + parseFloat(deposit.amount), 0);
+  
+    // Find the first year with deposits
+    const years = deposits.map(d => parseInt(d.year));
+    const firstYear = Math.min(...years);
+  
+    // Use the actual current year
+    const currentYear = new Date().getFullYear();
+    const investmentDuration = currentYear - firstYear + 1;
+    
+    const overallYield = (currentValue - totalDeposited) / totalDeposited;
+    const annualYield = (1 + overallYield) ** (1 / investmentDuration) - 1;
+  
+    return annualYield;
+  };
+
   const projectInvestment = (startValue, yieldRate, commissionRate, transactionFee, years) => {
     let value = startValue * (1 - transactionFee);
     const values = [value];
@@ -78,85 +114,77 @@ const IsraeliInvestmentAnalyzer = () => {
     return "Never";
   };
 
-  const validateInputs = () => {
-    const newErrors = {};
-
-    if (deposits.some(d => !d.year || !d.amount)) {
-      newErrors.deposits = "All deposit fields must be filled";
-    }
-
-    if (!currentValue) newErrors.currentValue = "Current value is required";
-    if (!currentCommission) newErrors.currentCommission = "Current commission is required";
-    if (!newYield) newErrors.newYield = "New yield is required";
-    if (!newCommission) newErrors.newCommission = "New commission is required";
-    if (!newTransactionFee) newErrors.newTransactionFee = "New transaction fee is required";
-    if (!yearsToProject) newErrors.yearsToProject = "Years to project is required";
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const analyzeInvestment = () => {
-    if (!validateInputs()) {
+  const calculateCurrentInvestment = () => {
+    if (!validateCurrentInvestmentInputs()) {
       return; // Stop if there are validation errors
     }
   
-    // Convert string inputs to numbers
     const currentValueNum = parseFloat(currentValue);
-    const currentCommissionNum = parseFloat(currentCommission) / 100;
+    const currentYieldNum = calculateCurrentYield(deposits, currentValueNum);
+  
+    const adjustedDeposits = adjustForInflation(deposits);
+    const adjustedTotalDeposited = adjustedDeposits.reduce((sum, deposit) => sum + deposit.amount, 0);
+    const realGain = currentValueNum - adjustedTotalDeposited;
+    const taxAmount = calculateTax(currentValueNum, adjustedDeposits);
+    const availableMoneyForNewInvestment = currentValueNum - taxAmount;
+  
+    setCurrentInvestmentResults({
+      currentYieldNum,
+      realGain,
+      taxAmount,
+      availableMoneyForNewInvestment,
+    });
+  
+    setErrors({});
+  };
+  
+  const compareNewInvestment = () => {
+    // Validate new investment inputs
+    if (!validateNewInvestmentInputs()) {
+      return; // Stop if there are validation errors
+    }
+  
+    if (!currentInvestmentResults) {
+      setErrors({ currentInvestment: "Please calculate the current investment performance first." });
+      return;
+    }
+  
+    // Convert string inputs to numbers
     const newYieldNum = parseFloat(newYield) / 100;
     const newCommissionNum = parseFloat(newCommission) / 100;
     const newTransactionFeeNum = parseFloat(newTransactionFee) / 100;
     const yearsToProjectNum = parseInt(yearsToProject);
   
-    // Calculate current yield independently
-    const currentYieldNum = calculateCurrentYield(deposits, currentValueNum);
-  
-    // Calculate current investment projection
-    const currentProjection = projectInvestment(
-      currentValueNum,
-      currentYieldNum,
-      currentCommissionNum,
-      0,
-      yearsToProjectNum
-    );
-  
     // Calculate new investment projection
-    const adjustedDeposits = adjustForInflation(deposits);
-    const taxAmount = calculateTax(currentValueNum, adjustedDeposits);
-    const amountAfterTax = currentValueNum - taxAmount;
     const newProjection = projectInvestment(
-      amountAfterTax,
+      currentInvestmentResults.availableMoneyForNewInvestment,
       newYieldNum,
       newCommissionNum,
       newTransactionFeeNum,
       yearsToProjectNum
     );
   
-    // Calculate expected real gain and available money for new investment
-    const adjustedTotalDeposited = adjustedDeposits.reduce((sum, deposit) => sum + deposit.amount, 0);
-    const realGain = currentValueNum - adjustedTotalDeposited;
-    const availableMoneyForNewInvestment = currentValueNum - taxAmount;
-  
-    // Find break-even point
+    // Prepare chart data and comparison results
+    const currentProjection = projectInvestment(
+      parseFloat(currentValue),
+      currentInvestmentResults.currentYieldNum,
+      parseFloat(currentCommission) / 100,
+      0,
+      yearsToProjectNum
+    );
     const breakEvenYear = findBreakEvenPoint(currentProjection, newProjection);
   
-    // Prepare chart data
     const chartData = currentProjection.map((value, index) => ({
       year: index,
       current: value,
       new: newProjection[index]
     }));
   
-    // Set results
-    setResults({
+    setComparisonResults({
       currentFinalValue: currentProjection[yearsToProjectNum],
       newFinalValue: newProjection[yearsToProjectNum],
       breakEvenYear,
       chartData,
-      realGain,
-      taxAmount,
-      availableMoneyForNewInvestment,
       recommendation: newProjection[yearsToProjectNum] > currentProjection[yearsToProjectNum]
         ? "Consider moving to the new investment mechanism."
         : "Stay with the current investment mechanism."
@@ -165,7 +193,7 @@ const IsraeliInvestmentAnalyzer = () => {
 
   return (
     <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1 style={{ fontSize: '24px', marginBottom: '20px' }}>Should I move my money?</h1>
+      <h1 style={{ fontSize: '24px', marginBottom: '20px' }}>Israeli Investment Analyzer</h1>
       
       <div style={{ marginBottom: '20px' }}>
         <h2>Deposits</h2>
@@ -191,7 +219,7 @@ const IsraeliInvestmentAnalyzer = () => {
         <button onClick={handleAddDeposit}>Add Deposit</button>
         {errors.deposits && <span style={{ color: 'red', display: 'block' }}>{errors.deposits}</span>}
       </div>
-
+  
       <div style={{ marginBottom: '20px' }}>
         <h2>Current Investment</h2>
         <input
@@ -209,8 +237,20 @@ const IsraeliInvestmentAnalyzer = () => {
           onChange={(e) => setCurrentCommission(e.target.value)}
         />
         {errors.currentCommission && <span style={{ color: 'red', display: 'block' }}>{errors.currentCommission}</span>}
+        <button onClick={calculateCurrentInvestment} style={{ marginTop: '10px' }}>Calculate Current Investment</button>
+        {errors.currentInvestment && <span style={{ color: 'red', display: 'block' }}>{errors.currentInvestment}</span>}
       </div>
-
+  
+      {currentInvestmentResults && (
+        <div style={{ marginBottom: '20px' }}>
+          <h3>Current Investment Results</h3>
+          <p>Calculated Annual Yield: {(currentInvestmentResults.currentYieldNum * 100).toFixed(2)}%</p>
+          <p>Expected Real Gain: ₪{currentInvestmentResults.realGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p>Expected Capital Tax to be Paid: ₪{currentInvestmentResults.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p>Expected Available Money for the New Investment: ₪{currentInvestmentResults.availableMoneyForNewInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+        </div>
+      )}
+  
       <div style={{ marginBottom: '20px' }}>
         <h2>New Investment</h2>
         <input
@@ -236,48 +276,39 @@ const IsraeliInvestmentAnalyzer = () => {
           onChange={(e) => setNewTransactionFee(e.target.value)}
         />
         {errors.newTransactionFee && <span style={{ color: 'red', display: 'block' }}>{errors.newTransactionFee}</span>}
-      </div>
-
-      <div style={{ marginBottom: '20px' }}>
         <input
           type="number"
           placeholder="Years to Project"
           value={yearsToProject}
           onChange={(e) => setYearsToProject(e.target.value)}
+          style={{ marginRight: '10px' }}
         />
         {errors.yearsToProject && <span style={{ color: 'red', display: 'block' }}>{errors.yearsToProject}</span>}
+        <button onClick={compareNewInvestment} style={{ marginTop: '10px' }}>Compare New Investment</button>
       </div>
-
-      <button onClick={analyzeInvestment} style={{ marginBottom: '20px' }}>Analyze</button>
-
-      {results && (
-  <div>
-    <h2>Results</h2>
-    <p>Current Investment Value after {yearsToProject} years: ₪{results.currentFinalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-    <p>New Investment Value after {yearsToProject} years: ₪{results.newFinalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-    <p>Break-even point: {results.breakEvenYear} years</p>
-    <p><strong>{results.recommendation}</strong></p>
-    
-    <ResponsiveContainer width="100%" height={300}>
-      <LineChart data={results.chartData}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="year" />
-        <YAxis />
-        <Tooltip />
-        <Legend />
-        <Line type="monotone" dataKey="current" stroke="#8884d8" name="Current Investment" />
-        <Line type="monotone" dataKey="new" stroke="#82ca9d" name="New Investment" />
-      </LineChart>
-    </ResponsiveContainer>
-
-    <h3>Additional Information</h3>
-    <p>Expected Real Gain: ₪{results.realGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-    <p>Expected Capital Tax to be Paid: ₪{results.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-    <p>Expected Available Money for the New Investment: ₪{results.availableMoneyForNewInvestment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-  </div>
-)}
+  
+      {comparisonResults && (
+        <div>
+          <h2>Results</h2>
+          <p>Current Investment Value after {yearsToProject} years: ₪{comparisonResults.currentFinalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p>New Investment Value after {yearsToProject} years: ₪{comparisonResults.newFinalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p>Break-even point: {comparisonResults.breakEvenYear} years</p>
+          <p><strong>{comparisonResults.recommendation}</strong></p>
+          
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={comparisonResults.chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="year" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="current" stroke="#8884d8" name="Current Investment" />
+              <Line type="monotone" dataKey="new" stroke="#82ca9d" name="New Investment" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 };
-
 export default IsraeliInvestmentAnalyzer;
