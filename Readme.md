@@ -22,8 +22,8 @@ This project is a browser-based investment analysis tool that helps compare curr
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/israeli-investment-analyzer.git
-   cd israeli-investment-analyzer
+   git clone https://github.com/oferfive/Should_i_move_my_money.git
+   cd Should_i_move_my_money
    ```
 
 2. Install dependencies:
