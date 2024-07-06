@@ -1,5 +1,7 @@
+
 import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import './App.css';  // Ensure this line is at the top
 
 const IsraeliInvestmentAnalyzer = () => {
   const [deposits, setDeposits] = useState([{ year: '', amount: '' }]);
@@ -211,58 +213,63 @@ const IsraeliInvestmentAnalyzer = () => {
     });
   };
 
+  const numberFormatter = (value) => {
+    return value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  };
+
   return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1 style={{ fontSize: '24px', marginBottom: '20px' }}>Israeli Investment Analyzer</h1>
+    <div className="container">
+      <h1 className="title">Israeli Investment Analyzer</h1>
       
-      <div style={{ marginBottom: '20px' }}>
+      <div className="card">
         <h2>Deposits</h2>
         {deposits.map((deposit, index) => (
-          <div key={index} style={{ marginBottom: '10px' }}>
+          <div key={index} className="deposit-row">
             <input
               type="number"
               placeholder="Year"
               value={deposit.year}
               onChange={(e) => handleDepositChange(index, 'year', e.target.value)}
-              style={{ marginRight: '10px' }}
+              className="input"
             />
             <input
               type="number"
               placeholder="Amount"
               value={deposit.amount}
               onChange={(e) => handleDepositChange(index, 'amount', e.target.value)}
-              style={{ marginRight: '10px' }}
+              className="input"
             />
-            <button onClick={() => handleRemoveDeposit(index)}>Remove</button>
+            <button onClick={() => handleRemoveDeposit(index)} className="button">Remove</button>
           </div>
         ))}
-        <button onClick={handleAddDeposit}>Add Deposit</button>
-        {errors.deposits && <span style={{ color: 'red', display: 'block' }}>{errors.deposits}</span>}
+        <button onClick={handleAddDeposit} className="button">Add Deposit</button>
+        {errors.deposits && <span className="error">{errors.deposits}</span>}
       </div>
   
-      <div style={{ marginBottom: '20px' }}>
+      <div className="card">
         <h2>Current Investment</h2>
         <input
           type="number"
           placeholder="Current Value"
           value={currentValue}
           onChange={(e) => setCurrentValue(e.target.value)}
-          style={{ marginRight: '10px' }}
+          className="input"
         />
-        {errors.currentValue && <span style={{ color: 'red', display: 'block' }}>{errors.currentValue}</span>}
+        {errors.currentValue && <span className="error">{errors.currentValue}</span>}
         <input
           type="number"
           placeholder="Current Commission (%)"
           value={currentCommission}
           onChange={(e) => setCurrentCommission(e.target.value)}
+          className="input"
         />
-        {errors.currentCommission && <span style={{ color: 'red', display: 'block' }}>{errors.currentCommission}</span>}
-        <button onClick={calculateCurrentInvestment} style={{ marginTop: '10px' }}>Calculate Current Investment</button>
-        {errors.currentInvestment && <span style={{ color: 'red', display: 'block' }}>{errors.currentInvestment}</span>}
+        {errors.currentCommission && <span className="error">{errors.currentCommission}</span>}
+        <button onClick={calculateCurrentInvestment} className="button">Calculate Current Investment</button>
+        {errors.currentInvestment && <span className="error">{errors.currentInvestment}</span>}
       </div>
   
       {currentInvestmentResults && (
-        <div style={{ marginBottom: '20px' }}>
+        <div className="card">
           <h3>Current Investment Results</h3>
           <p>Calculated Annual Yield: {(currentInvestmentResults.currentYieldNum * 100).toFixed(2)}%</p>
           <p>Expected Real Gain: ₪{currentInvestmentResults.realGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
@@ -271,54 +278,55 @@ const IsraeliInvestmentAnalyzer = () => {
         </div>
       )}
   
-      <div style={{ marginBottom: '20px' }}>
+      <div className="card">
         <h2>New Investment</h2>
         <input
           type="number"
           placeholder="Percentage to Invest (%)"
           value={partialInvestmentPercentage}
           onChange={(e) => setPartialInvestmentPercentage(e.target.value)}
-          style={{ marginRight: '10px' }}
+          className="input"
         />
         <input
           type="number"
           placeholder="New Yield (%)"
           value={newYield}
           onChange={(e) => setNewYield(e.target.value)}
-          style={{ marginRight: '10px' }}
+          className="input"
         />
-        {errors.newYield && <span style={{ color: 'red', display: 'block' }}>{errors.newYield}</span>}
+        {errors.newYield && <span className="error">{errors.newYield}</span>}
         <input
           type="number"
           placeholder="New Commission (%)"
           value={newCommission}
           onChange={(e) => setNewCommission(e.target.value)}
-          style={{ marginRight: '10px' }}
+          className="input"
         />
-        {errors.newCommission && <span style={{ color: 'red', display: 'block' }}>{errors.newCommission}</span>}
+        {errors.newCommission && <span className="error">{errors.newCommission}</span>}
         <input
           type="number"
           placeholder="New Transaction Fee (%)"
           value={newTransactionFee}
           onChange={(e) => setNewTransactionFee(e.target.value)}
+          className="input"
         />
-        {errors.newTransactionFee && <span style={{ color: 'red', display: 'block' }}>{errors.newTransactionFee}</span>}
+        {errors.newTransactionFee && <span className="error">{errors.newTransactionFee}</span>}
         <input
           type="number"
           placeholder="Years to Project"
           value={yearsToProject}
           onChange={(e) => setYearsToProject(e.target.value)}
-          style={{ marginRight: '10px' }}
+          className="input"
         />
-        {errors.yearsToProject && <span style={{ color: 'red', display: 'block' }}>{errors.yearsToProject}</span>}
-        <button onClick={compareNewInvestment} style={{ marginTop: '10px' }}>Compare New Investment</button>
+        {errors.yearsToProject && <span className="error">{errors.yearsToProject}</span>}
+        <button onClick={compareNewInvestment} className="button">Compare New Investment</button>
       </div>
   
       {comparisonResults && (
-        <div>
+        <div className="card">
           <h2>Results</h2>
-          <p>Current Investment Value after {yearsToProject} years: ₪{comparisonResults.currentFinalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-          <p>New Investment Value after {yearsToProject} years: ₪{comparisonResults.newFinalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p>Current Investment Value after {yearsToProject} years: ₪{comparisonResults.currentFinalValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+          <p>New Investment Value after {yearsToProject} years: ₪{comparisonResults.newFinalValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
           <p>Break-even point: {comparisonResults.breakEvenYear} years</p>
           <p><strong>{comparisonResults.recommendation}</strong></p>
           
@@ -326,8 +334,8 @@ const IsraeliInvestmentAnalyzer = () => {
             <LineChart data={comparisonResults.chartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="year" />
-              <YAxis />
-              <Tooltip />
+              <YAxis tickFormatter={numberFormatter} />
+              <Tooltip formatter={(value) => numberFormatter(value)} />
               <Legend />
               <Line type="monotone" dataKey="current" stroke="#8884d8" name="Current Investment" />
               <Line type="monotone" dataKey="new" stroke="#82ca9d" name="New Investment" />
