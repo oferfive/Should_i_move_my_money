@@ -13,6 +13,8 @@ const IsraeliInvestmentAnalyzer = () => {
   const [yearsToProject, setYearsToProject] = useState('');
   const [comparisonResults, setComparisonResults] = useState(null);
 
+  const [partialInvestmentPercentage, setPartialInvestmentPercentage] = useState('100');
+
   const [errors, setErrors] = useState({});
 
   const taxRate = 0.25;
@@ -143,28 +145,45 @@ const IsraeliInvestmentAnalyzer = () => {
     if (!validateNewInvestmentInputs()) {
       return; // Stop if there are validation errors
     }
-  
+
     if (!currentInvestmentResults) {
       setErrors({ currentInvestment: "Please calculate the current investment performance first." });
       return;
     }
-  
+
     // Convert string inputs to numbers
     const newYieldNum = parseFloat(newYield) / 100;
     const newCommissionNum = parseFloat(newCommission) / 100;
     const newTransactionFeeNum = parseFloat(newTransactionFee) / 100;
     const yearsToProjectNum = parseInt(yearsToProject);
-  
-    // Calculate new investment projection
+    const partialPercentage = parseFloat(partialInvestmentPercentage) / 100;
+
+    // Calculate the partial investment amount
+    const partialInvestmentAmount = currentInvestmentResults.availableMoneyForNewInvestment * partialPercentage;
+    const remainingInvestmentAmount = currentInvestmentResults.availableMoneyForNewInvestment * (1 - partialPercentage);
+
+    // Calculate new investment projection for the partial amount
     const newProjection = projectInvestment(
-      currentInvestmentResults.availableMoneyForNewInvestment,
+      partialInvestmentAmount,
       newYieldNum,
       newCommissionNum,
       newTransactionFeeNum,
       yearsToProjectNum
     );
-  
-    // Prepare chart data and comparison results
+
+    // Calculate current investment projection for the remaining amount
+    const remainingProjection = projectInvestment(
+      remainingInvestmentAmount,
+      currentInvestmentResults.currentYieldNum,
+      parseFloat(currentCommission) / 100,
+      0,
+      yearsToProjectNum
+    );
+
+    // Combine the two projections
+    const combinedNewProjection = newProjection.map((value, index) => value + remainingProjection[index]);
+
+    // Calculate current investment projection for comparison
     const currentProjection = projectInvestment(
       parseFloat(currentValue),
       currentInvestmentResults.currentYieldNum,
@@ -172,21 +191,22 @@ const IsraeliInvestmentAnalyzer = () => {
       0,
       yearsToProjectNum
     );
-    const breakEvenYear = findBreakEvenPoint(currentProjection, newProjection);
-  
+
+    const breakEvenYear = findBreakEvenPoint(currentProjection, combinedNewProjection);
+
     const chartData = currentProjection.map((value, index) => ({
       year: index,
       current: value,
-      new: newProjection[index]
+      new: combinedNewProjection[index]
     }));
-  
+
     setComparisonResults({
       currentFinalValue: currentProjection[yearsToProjectNum],
-      newFinalValue: newProjection[yearsToProjectNum],
+      newFinalValue: combinedNewProjection[yearsToProjectNum],
       breakEvenYear,
       chartData,
-      recommendation: newProjection[yearsToProjectNum] > currentProjection[yearsToProjectNum]
-        ? "Consider moving to the new investment mechanism."
+      recommendation: combinedNewProjection[yearsToProjectNum] > currentProjection[yearsToProjectNum]
+        ? "Consider moving the specified portion to the new investment mechanism."
         : "Stay with the current investment mechanism."
     });
   };
@@ -255,6 +275,13 @@ const IsraeliInvestmentAnalyzer = () => {
         <h2>New Investment</h2>
         <input
           type="number"
+          placeholder="Percentage to Invest (%)"
+          value={partialInvestmentPercentage}
+          onChange={(e) => setPartialInvestmentPercentage(e.target.value)}
+          style={{ marginRight: '10px' }}
+        />
+        <input
+          type="number"
           placeholder="New Yield (%)"
           value={newYield}
           onChange={(e) => setNewYield(e.target.value)}
@@ -311,4 +338,5 @@ const IsraeliInvestmentAnalyzer = () => {
     </div>
   );
 };
+
 export default IsraeliInvestmentAnalyzer;
