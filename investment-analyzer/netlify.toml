@@ -1,0 +1,9 @@
+[build]
+  base = "investment-analyzer"
+  publish = "investment-analyzer/build"
+  command = "npm run build"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
