@@ -28,10 +28,15 @@ body {
   box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
 }
 
-.deposit-row {
+.input-group {
   display: flex;
-  align-items: center;
-  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.input-group.full-width {
+  width: 100%;
 }
 
 .input {
@@ -42,6 +47,11 @@ body {
   border-radius: 12px;
 }
 
+.input.full-width-input {
+  width: 100%;
+  margin-right: 0; /* Remove margin for full width input */
+}
+
 .button {
   padding: 10px 15px;
   border: none;
@@ -49,6 +59,7 @@ body {
   background-color: #359EFF;
   color: #fff;
   cursor: pointer;
+  margin-top: 10px;
 }
 
 .button:hover {
@@ -74,7 +85,42 @@ body {
   display: block;
 }
 
-/* Remove arrows in input type number */
+.button-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 10px;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  background-color: #fff;
+  color: #aaa;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+}
+
+.button-secondary:hover {
+  background-color: #f0f0f0;
+  color: #888;
+  border-color: #bbb;
+}
+
+.button-secondary img {
+  margin-right: 8px;
+}
+
+.divider {
+  margin: 20px 0;
+  border: none;
+  border-top: 1px solid #ddd;
+}
+
+.deposit-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
 input[type="number"] {
   -moz-appearance: textfield;
 }
