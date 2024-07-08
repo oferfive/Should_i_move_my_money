@@ -49,7 +49,7 @@ body {
 
 .input.full-width-input {
   width: 100%;
-  margin-right: 0; /* Remove margin for full width input */
+  margin-right: 0;
 }
 
 .button {
@@ -129,4 +129,66 @@ input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+/* Media Queries for Responsiveness */
+
+@media (max-width: 768px) {
+  .container {
+    padding: 10px;
+    margin: 10px auto;
+  }
+
+  .title {
+    font-size: 20px;
+  }
+
+  .card {
+    padding: 10px;
+  }
+
+  .input {
+    flex: 1 1 100%;
+    margin-right: 0;
+    margin-bottom: 10px;
+  }
+
+  .button,
+  .button-gray,
+  .button-secondary {
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0;
+  }
+
+  .deposit-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .deposit-row input {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+
+  .deposit-row button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .title {
+    font-size: 18px;
+  }
+
+  .card {
+    padding: 5px;
+  }
+
+  .button,
+  .button-gray,
+  .button-secondary {
+    padding: 8px;
+    font-size: 14px;
+  }
 }
