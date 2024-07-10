@@ -117,6 +117,7 @@ body {
   display: flex;
   align-items: center;
   margin-bottom: 10px;
+  max-width: 100%;
 }
 
 input[type="number"] {

@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import "./App.css";
+import { NumericFormat } from 'react-number-format';
 
 const IsraeliInvestmentAnalyzer = () => {
   const [deposits, setDeposits] = useState([{ year: "", amount: "" }]);
@@ -293,13 +294,15 @@ const IsraeliInvestmentAnalyzer = () => {
               }
               className="input"
             />
-            <input
-              type="number"
+            <NumericFormat
+              thousandSeparator=","
+              prefix="₪"
               placeholder="Amount"
               value={deposit.amount}
-              onChange={(e) =>
-                handleDepositChange(index, "amount", e.target.value)
-              }
+              onValueChange={(values) => {
+                const { value } = values;
+                handleDepositChange(index, "amount", value);
+              }}
               className="input"
             />
             <button
@@ -316,21 +319,29 @@ const IsraeliInvestmentAnalyzer = () => {
         <hr className="divider" />
         {errors.deposits && <span className="error">{errors.deposits}</span>}
 
-        <input
-          type="number"
+        <NumericFormat
+          thousandSeparator=","
+          prefix="₪"
           placeholder="Current Value"
           value={currentValue}
-          onChange={(e) => setCurrentValue(e.target.value)}
+          onValueChange={(values) => {
+            const { value } = values;
+            setCurrentValue(value);
+          }}
           className="input"
         />
         {errors.currentValue && (
           <span className="error">{errors.currentValue}</span>
         )}
-        <input
-          type="number"
+        <NumericFormat
+          suffix="%"
+          decimalScale={2}
           placeholder="Current Commission (%)"
           value={currentCommission}
-          onChange={(e) => setCurrentCommission(e.target.value)}
+          onValueChange={(values) => {
+            const { value } = values;
+            setCurrentCommission(value);
+          }}
           className="input"
         />
         {errors.currentCommission && (
@@ -377,46 +388,65 @@ const IsraeliInvestmentAnalyzer = () => {
 
       <div className="card">
         <h2>New Investment</h2>
-        <input
-          type="number"
+        <NumericFormat
+          suffix="%"
+          decimalScale={2}
           placeholder="Percentage to Invest (%)"
           value={partialInvestmentPercentage}
-          onChange={(e) => setPartialInvestmentPercentage(e.target.value)}
+          onValueChange={(values) => {
+            const { value } = values;
+            setPartialInvestmentPercentage(value);
+          }}
           className="input"
         />
-        <input
-          type="number"
+        <NumericFormat
+          suffix="%"
+          decimalScale={2}
           placeholder="New Yield (%)"
           value={newYield}
-          onChange={(e) => setNewYield(e.target.value)}
+          onValueChange={(values) => {
+            const { value } = values;
+            setNewYield(value);
+          }}
           className="input"
         />
         {errors.newYield && <span className="error">{errors.newYield}</span>}
-        <input
-          type="number"
+        <NumericFormat
+          suffix="%"
+          decimalScale={2}
           placeholder="New Commission (%)"
           value={newCommission}
-          onChange={(e) => setNewCommission(e.target.value)}
+          onValueChange={(values) => {
+            const { value } = values;
+            setNewCommission(value);
+          }}
           className="input"
         />
         {errors.newCommission && (
           <span className="error">{errors.newCommission}</span>
         )}
-        <input
-          type="number"
+        <NumericFormat
+          suffix="%"
+          decimalScale={2}
           placeholder="New Transaction Fee (%)"
           value={newTransactionFee}
-          onChange={(e) => setNewTransactionFee(e.target.value)}
+          onValueChange={(values) => {
+            const { value } = values;
+            setNewTransactionFee(value);
+          }}
           className="input"
         />
         {errors.newTransactionFee && (
           <span className="error">{errors.newTransactionFee}</span>
         )}
-        <input
-          type="number"
+        <NumericFormat
+          decimalScale={0}
           placeholder="Years to Project"
           value={yearsToProject}
-          onChange={(e) => setYearsToProject(e.target.value)}
+          onValueChange={(values) => {
+            const { value } = values;
+            setYearsToProject(value);
+          }}
           className="input"
         />
         {errors.yearsToProject && (
