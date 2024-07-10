@@ -7,17 +7,16 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer
+  ResponsiveContainer,
 } from "recharts";
-import "./App.css"; // Ensure this line is at the top
+import "./App.css";
 
 const IsraeliInvestmentAnalyzer = () => {
   const [deposits, setDeposits] = useState([{ year: "", amount: "" }]);
   const [currentValue, setCurrentValue] = useState("");
   const [currentCommission, setCurrentCommission] = useState("");
-  const [currentInvestmentResults, setCurrentInvestmentResults] = useState(
-    null
-  );
+  const [currentInvestmentResults, setCurrentInvestmentResults] =
+    useState(null);
 
   const [newYield, setNewYield] = useState("");
   const [newCommission, setNewCommission] = useState("");
@@ -25,11 +24,8 @@ const IsraeliInvestmentAnalyzer = () => {
   const [yearsToProject, setYearsToProject] = useState("");
   const [comparisonResults, setComparisonResults] = useState(null);
 
-  const [
-    partialInvestmentPercentage,
-    setPartialInvestmentPercentage
-  ] = useState("100");
-
+  const [partialInvestmentPercentage, setPartialInvestmentPercentage] =
+    useState("100");
   const [errors, setErrors] = useState({});
 
   const taxRate = 0.25;
@@ -43,7 +39,7 @@ const IsraeliInvestmentAnalyzer = () => {
     2021: 102.8,
     2022: 107.3,
     2023: 111.8,
-    2024: 113.8
+    2024: 113.8,
   };
 
   const handleAddDeposit = () => {
@@ -98,7 +94,7 @@ const IsraeliInvestmentAnalyzer = () => {
     const latestCPI = getLatestCPI();
     return deposits.map((deposit) => ({
       year: parseInt(deposit.year),
-      amount: parseFloat(deposit.amount) * (latestCPI / cpiData[deposit.year])
+      amount: parseFloat(deposit.amount) * (latestCPI / cpiData[deposit.year]),
     }));
   };
 
@@ -175,34 +171,28 @@ const IsraeliInvestmentAnalyzer = () => {
       currentYieldNum,
       realGain,
       taxAmount,
-      availableMoneyForNewInvestment
+      availableMoneyForNewInvestment,
     });
 
     setErrors({});
   };
 
   const compareNewInvestment = () => {
-    // Validate new investment inputs
-    if (!validateNewInvestmentInputs()) {
-      return; // Stop if there are validation errors
-    }
-
+    if (!validateNewInvestmentInputs()) return;
     if (!currentInvestmentResults) {
       setErrors({
         currentInvestment:
-          "Please calculate the current investment performance first."
+          "Please calculate the current investment performance first.",
       });
       return;
     }
 
-    // Convert string inputs to numbers
     const newYieldNum = parseFloat(newYield) / 100;
     const newCommissionNum = parseFloat(newCommission) / 100;
     const newTransactionFeeNum = parseFloat(newTransactionFee) / 100;
     const yearsToProjectNum = parseInt(yearsToProject);
     const partialPercentage = parseFloat(partialInvestmentPercentage) / 100;
 
-    // Calculate the partial investment amount
     const partialInvestmentAmount =
       currentInvestmentResults.availableMoneyForNewInvestment *
       partialPercentage;
@@ -210,7 +200,6 @@ const IsraeliInvestmentAnalyzer = () => {
       currentInvestmentResults.availableMoneyForNewInvestment *
       (1 - partialPercentage);
 
-    // Calculate new investment projection for the partial amount
     const newProjection = projectInvestment(
       partialInvestmentAmount,
       newYieldNum,
@@ -218,8 +207,6 @@ const IsraeliInvestmentAnalyzer = () => {
       newTransactionFeeNum,
       yearsToProjectNum
     );
-
-    // Calculate current investment projection for the remaining amount
     const remainingProjection = projectInvestment(
       remainingInvestmentAmount,
       currentInvestmentResults.currentYieldNum,
@@ -227,13 +214,9 @@ const IsraeliInvestmentAnalyzer = () => {
       0,
       yearsToProjectNum
     );
-
-    // Combine the two projections
     const combinedNewProjection = newProjection.map(
       (value, index) => value + remainingProjection[index]
     );
-
-    // Calculate current investment projection for comparison
     const currentProjection = projectInvestment(
       parseFloat(currentValue),
       currentInvestmentResults.currentYieldNum,
@@ -246,11 +229,12 @@ const IsraeliInvestmentAnalyzer = () => {
       currentProjection,
       combinedNewProjection
     );
-
     const chartData = currentProjection.map((value, index) => ({
       year: index,
       current: value,
-      new: combinedNewProjection[index]
+      new: combinedNewProjection[index],
+      currentProjection: currentProjection,
+      newProjection: combinedNewProjection,
     }));
 
     setComparisonResults({
@@ -262,15 +246,33 @@ const IsraeliInvestmentAnalyzer = () => {
         combinedNewProjection[yearsToProjectNum] >
         currentProjection[yearsToProjectNum]
           ? "Consider moving the specified portion to the new investment mechanism."
-          : "Stay with the current investment mechanism."
+          : "Stay with the current investment mechanism.",
     });
   };
 
   const numberFormatter = (value) => {
     return value.toLocaleString(undefined, {
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     });
+  };
+
+  const formatTooltip = (value, name, props) => {
+    let percentageChange = 0;
+
+    if (name === "Current Investment") {
+      percentageChange = (
+        (value / props.payload.currentProjection[0]) * 100 -
+        100
+      ).toFixed(2);
+    } else if (name === "New Investment") {
+      percentageChange = (
+        (value / props.payload.newProjection[0]) * 100 -
+        100
+      ).toFixed(2);
+    }
+
+    return [`₪${value.toLocaleString()}`, `(${percentageChange}%)`];
   };
 
   return (
@@ -353,14 +355,14 @@ const IsraeliInvestmentAnalyzer = () => {
             Expected Real Gain: ₪
             {currentInvestmentResults.realGain.toLocaleString(undefined, {
               minimumFractionDigits: 2,
-              maximumFractionDigits: 2
+              maximumFractionDigits: 2,
             })}
           </p>
           <p>
             Expected Capital Tax to be Paid: ₪
             {currentInvestmentResults.taxAmount.toLocaleString(undefined, {
               minimumFractionDigits: 2,
-              maximumFractionDigits: 2
+              maximumFractionDigits: 2,
             })}
           </p>
           <p>
@@ -432,14 +434,14 @@ const IsraeliInvestmentAnalyzer = () => {
             Current Investment Value after {yearsToProject} years: ₪
             {comparisonResults.currentFinalValue.toLocaleString(undefined, {
               minimumFractionDigits: 0,
-              maximumFractionDigits: 0
+              maximumFractionDigits: 0,
             })}
           </p>
           <p>
             New Investment Value after {yearsToProject} years: ₪
             {comparisonResults.newFinalValue.toLocaleString(undefined, {
               minimumFractionDigits: 0,
-              maximumFractionDigits: 0
+              maximumFractionDigits: 0,
             })}
           </p>
           <p>Break-even point: {comparisonResults.breakEvenYear} years</p>
@@ -452,7 +454,7 @@ const IsraeliInvestmentAnalyzer = () => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="year" />
               <YAxis tickFormatter={numberFormatter} />
-              <Tooltip formatter={(value) => numberFormatter(value)} />
+              <Tooltip formatter={formatTooltip} />
               <Legend />
               <Line
                 type="monotone"
