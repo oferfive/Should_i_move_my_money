@@ -393,72 +393,66 @@ const IsraeliInvestmentAnalyzer = () => {
         </div>
       )}
 
-      <div className="card">
+      <div className="card new-investment-section">
         <h2>New Investment</h2>
-        <NumericFormat
-          suffix="%"
-          decimalScale={2}
-          placeholder="Percentage to Invest (%)"
-          value={partialInvestmentPercentage}
-          onValueChange={(values) => {
-            const { value } = values;
-            setPartialInvestmentPercentage(value);
-          }}
-          className="input"
-        />
-        <NumericFormat
-          suffix="%"
-          decimalScale={2}
-          placeholder="New Yield (%)"
-          value={newYield}
-          onValueChange={(values) => {
-            const { value } = values;
-            setNewYield(value);
-          }}
-          className="input"
-        />
-        {errors.newYield && <span className="error">{errors.newYield}</span>}
-        <NumericFormat
-          suffix="%"
-          decimalScale={2}
-          placeholder="New Commission (%)"
-          value={newCommission}
-          onValueChange={(values) => {
-            const { value } = values;
-            setNewCommission(value);
-          }}
-          className="input"
-        />
-        {errors.newCommission && (
-          <span className="error">{errors.newCommission}</span>
-        )}
-        <NumericFormat
-          suffix="%"
-          decimalScale={2}
-          placeholder="New Transaction Fee (%)"
-          value={newTransactionFee}
-          onValueChange={(values) => {
-            const { value } = values;
-            setNewTransactionFee(value);
-          }}
-          className="input"
-        />
-        {errors.newTransactionFee && (
-          <span className="error">{errors.newTransactionFee}</span>
-        )}
-        <NumericFormat
-          decimalScale={0}
-          placeholder="Years to Project"
-          value={yearsToProject}
-          onValueChange={(values) => {
-            const { value } = values;
-            setYearsToProject(value);
-          }}
-          className="input"
-        />
-        {errors.yearsToProject && (
-          <span className="error">{errors.yearsToProject}</span>
-        )}
+        <div className="input-row">
+          <NumericFormat
+            suffix="%"
+            decimalScale={2}
+            placeholder="Proportion of old investment to use (%)"
+            value={partialInvestmentPercentage}
+            onValueChange={(values) => {
+              const { value } = values;
+              setPartialInvestmentPercentage(value);
+            }}
+            className="input"
+          />
+          <NumericFormat
+            suffix="%"
+            decimalScale={2}
+            placeholder="New expected yield (%)"
+            value={newYield}
+            onValueChange={(values) => {
+              const { value } = values;
+              setNewYield(value);
+            }}
+            className="input"
+          />
+        </div>
+        <div className="input-row">
+          <NumericFormat
+            suffix="%"
+            decimalScale={2}
+            placeholder="New investment commission (%)"
+            value={newCommission}
+            onValueChange={(values) => {
+              const { value } = values;
+              setNewCommission(value);
+            }}
+            className="input"
+          />
+          <NumericFormat
+            suffix="%"
+            decimalScale={2}
+            placeholder="New investment transaction fee (%)"
+            value={newTransactionFee}
+            onValueChange={(values) => {
+              const { value } = values;
+              setNewTransactionFee(value);
+            }}
+            className="input"
+          />
+          <NumericFormat
+            decimalScale={0}
+            placeholder="Years to project"
+            value={yearsToProject}
+            onValueChange={(values) => {
+              const { value } = values;
+              setYearsToProject(value);
+            }}
+            className="input"
+          />
+        </div>
         <div className="yield-selection">
           <label>
             <input
@@ -493,7 +487,7 @@ const IsraeliInvestmentAnalyzer = () => {
             className="input"
           />
         )}
-        <button onClick={compareNewInvestment} className="button">
+        <button onClick={compareNewInvestment} className="compare-button">
           Compare New Investment
         </button>
       </div>

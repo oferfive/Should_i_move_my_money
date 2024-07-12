@@ -147,6 +147,53 @@ input[type="number"]::-webkit-inner-spin-button {
   margin-right: 5px;
 }
 
+.new-investment-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.new-investment-section .input-row {
+  display: flex;
+  gap: 10px;
+}
+
+.new-investment-section .input-row input {
+  flex: 1;
+}
+
+.new-investment-section .yield-selection {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+}
+
+.new-investment-section .yield-selection label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.new-investment-section .yield-selection input[type="radio"] {
+  margin-right: 5px;
+}
+
+.new-investment-section .compare-button {
+  align-self: flex-start;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 12px;
+  background-color: var(--primary-color);
+  color: #fff;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background-color 0.3s;
+}
+
+.new-investment-section .compare-button:hover {
+  background-color: var(--button-hover-color);
+}
+
 /* Media Queries for Responsiveness */
 
 @media (max-width: 768px) {
