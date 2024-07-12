@@ -133,8 +133,8 @@ input[type="number"]::-webkit-inner-spin-button {
 .yield-selection {
   display: flex;
   flex-direction: column;
-  margin-bottom: 10px;
-  margin-top: 10px;
+  margin-bottom: 5px;
+  margin-top: 5px;
 }
 
 .yield-selection label {
@@ -165,7 +165,7 @@ input[type="number"]::-webkit-inner-spin-button {
 .new-investment-section .yield-selection {
   display: flex;
   flex-direction: column;
-  margin-bottom: 10px;
+  margin-bottom: 0px;
 }
 
 .new-investment-section .yield-selection label {
@@ -176,6 +176,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .new-investment-section .yield-selection input[type="radio"] {
   margin-right: 5px;
+  margin-bottom: 5px;
 }
 
 .new-investment-section .compare-button {
@@ -192,6 +193,20 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .new-investment-section .compare-button:hover {
   background-color: var(--button-hover-color);
+}
+
+.new-investment-section .narrow-input {
+  flex: 1;
+  max-width: 200px; /* Adjust as necessary to match the width of other inputs */
+}
+
+.new-investment-section .yield-selection-title {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.new-investment-section .yield-selection {
+  font-size: 0.9em;
 }
 
 /* Media Queries for Responsiveness */

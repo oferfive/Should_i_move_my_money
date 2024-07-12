@@ -284,9 +284,9 @@ const IsraeliInvestmentAnalyzer = () => {
 
   return (
     <div className="container">
-      <h1 className="title">Should I Move My Money?</h1>
+      <h1 className="title">Should I move my money?</h1>
       <div className="card">
-        <h2>Current Investment</h2>
+        <h2>Current investment</h2>
 
         <h3>Deposits</h3>
         {deposits.map((deposit, index) => (
@@ -364,37 +364,40 @@ const IsraeliInvestmentAnalyzer = () => {
 
       {currentInvestmentResults && (
         <div className="card">
-          <h3>Current Investment Results</h3>
-          <p>
-            Calculated Annual Yield:{" "}
-            {(currentInvestmentResults.currentYieldNum * 100).toFixed(2)}%
-          </p>
-          <p>
-            Expected Real Gain: ₪
-            {currentInvestmentResults.realGain.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </p>
-          <p>
-            Expected Capital Tax to be Paid: ₪
-            {currentInvestmentResults.taxAmount.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </p>
-          <p>
-            Expected Available Money for the New Investment: ₪
-            {currentInvestmentResults.availableMoneyForNewInvestment.toLocaleString(
-              undefined,
-              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-            )}
-          </p>
+          <h3>Current investment results</h3>
+          <ul style={{ margin: 0, paddingLeft: '1.2em' }}>
+            <li style={{ marginBottom: '0.5em' }}>
+              Calculated annual yield:{" "}
+              {(currentInvestmentResults.currentYieldNum * 100).toFixed(2)}%
+            </li>
+            <li style={{ marginBottom: '0.5em' }}>
+              Expected real gain: ₪
+              {currentInvestmentResults.realGain.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </li>
+            <li style={{ marginBottom: '0.5em' }}>
+              Expected capital tax to be paid: ₪
+              {currentInvestmentResults.taxAmount.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </li>
+            <li style={{ marginBottom: '0.5em' }}>
+              Expected available money for the new investment: ₪
+              {currentInvestmentResults.availableMoneyForNewInvestment.toLocaleString(
+                undefined,
+                { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+              )}
+            </li>
+          </ul>
         </div>
       )}
 
+
       <div className="card new-investment-section">
-        <h2>New Investment</h2>
+        <h2>New investment</h2>
         <div className="input-row">
           <NumericFormat
             suffix="%"
@@ -454,6 +457,7 @@ const IsraeliInvestmentAnalyzer = () => {
           />
         </div>
         <div className="yield-selection">
+          <div className="yield-selection-title">For the existing investment:</div>
           <label>
             <input
               type="radio"
@@ -478,13 +482,13 @@ const IsraeliInvestmentAnalyzer = () => {
           <NumericFormat
             suffix="%"
             decimalScale={2}
-            placeholder="Manual Current Yield (%)"
+            placeholder="Manual current yield (%)"
             value={manualCurrentYield}
             onValueChange={(values) => {
               const { value } = values;
               setManualCurrentYield(value);
             }}
-            className="input"
+            className="input narrow-input"
           />
         )}
         <button onClick={compareNewInvestment} className="compare-button">
@@ -492,24 +496,27 @@ const IsraeliInvestmentAnalyzer = () => {
         </button>
       </div>
 
+
       {comparisonResults && (
         <div className="card">
           <h2>Results</h2>
-          <p>
-            Current Investment Value after {yearsToProject} years: ₪
-            {comparisonResults.currentFinalValue.toLocaleString(undefined, {
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0,
-            })}
-          </p>
-          <p>
-            New Investment Value after {yearsToProject} years: ₪
-            {comparisonResults.newFinalValue.toLocaleString(undefined, {
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0,
-            })}
-          </p>
-          <p>Break-even point: {comparisonResults.breakEvenYear} years</p>
+          <ul style={{ margin: 0, paddingLeft: '1.2em' }}>
+            <li style={{ marginBottom: '0.5em' }}>
+              Current investment value after {yearsToProject} years: ₪
+              {comparisonResults.currentFinalValue.toLocaleString(undefined, {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+              })}
+            </li>
+            <li style={{ marginBottom: '0.5em' }}>
+              New investment value after {yearsToProject} years: ₪
+              {comparisonResults.newFinalValue.toLocaleString(undefined, {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+              })}
+            </li>
+            <li style={{ marginBottom: '0.5em' }}>Break-even point: {comparisonResults.breakEvenYear} years</li>
+          </ul>
           <p>
             <strong>{comparisonResults.recommendation}</strong>
           </p>
