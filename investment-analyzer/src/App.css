@@ -130,6 +130,23 @@ input[type="number"]::-webkit-inner-spin-button {
   margin: 0;
 }
 
+.yield-selection {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+  margin-top: 10px;
+}
+
+.yield-selection label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.yield-selection input[type="radio"] {
+  margin-right: 5px;
+}
+
 /* Media Queries for Responsiveness */
 
 @media (max-width: 768px) {

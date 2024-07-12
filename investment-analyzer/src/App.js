@@ -29,6 +29,9 @@ const IsraeliInvestmentAnalyzer = () => {
     useState("100");
   const [errors, setErrors] = useState({});
 
+  const [useExistingYield, setUseExistingYield] = useState(true);
+  const [manualCurrentYield, setManualCurrentYield] = useState("");
+
   const taxRate = 0.25;
   const cpiData = {
     2015: 100.0,
@@ -155,10 +158,10 @@ const IsraeliInvestmentAnalyzer = () => {
     if (!validateCurrentInvestmentInputs()) {
       return; // Stop if there are validation errors
     }
-
+  
     const currentValueNum = parseFloat(currentValue);
     const currentYieldNum = calculateCurrentYield(deposits, currentValueNum);
-
+  
     const adjustedDeposits = adjustForInflation(deposits);
     const adjustedTotalDeposited = adjustedDeposits.reduce(
       (sum, deposit) => sum + deposit.amount,
@@ -167,14 +170,14 @@ const IsraeliInvestmentAnalyzer = () => {
     const realGain = currentValueNum - adjustedTotalDeposited;
     const taxAmount = calculateTax(currentValueNum, adjustedDeposits);
     const availableMoneyForNewInvestment = currentValueNum - taxAmount;
-
+  
     setCurrentInvestmentResults({
       currentYieldNum,
       realGain,
       taxAmount,
       availableMoneyForNewInvestment,
     });
-
+  
     setErrors({});
   };
 
@@ -188,6 +191,9 @@ const IsraeliInvestmentAnalyzer = () => {
       return;
     }
 
+    const currentYieldToUse = useExistingYield
+      ? currentInvestmentResults.currentYieldNum
+      : parseFloat(manualCurrentYield) / 100;
     const newYieldNum = parseFloat(newYield) / 100;
     const newCommissionNum = parseFloat(newCommission) / 100;
     const newTransactionFeeNum = parseFloat(newTransactionFee) / 100;
@@ -210,7 +216,7 @@ const IsraeliInvestmentAnalyzer = () => {
     );
     const remainingProjection = projectInvestment(
       remainingInvestmentAmount,
-      currentInvestmentResults.currentYieldNum,
+      currentYieldToUse,
       parseFloat(currentCommission) / 100,
       0,
       yearsToProjectNum
@@ -220,7 +226,7 @@ const IsraeliInvestmentAnalyzer = () => {
     );
     const currentProjection = projectInvestment(
       parseFloat(currentValue),
-      currentInvestmentResults.currentYieldNum,
+      currentYieldToUse,
       parseFloat(currentCommission) / 100,
       0,
       yearsToProjectNum
@@ -347,6 +353,7 @@ const IsraeliInvestmentAnalyzer = () => {
         {errors.currentCommission && (
           <span className="error">{errors.currentCommission}</span>
         )}
+        
         <button onClick={calculateCurrentInvestment} className="button">
           Calculate Current Investment
         </button>
@@ -451,6 +458,40 @@ const IsraeliInvestmentAnalyzer = () => {
         />
         {errors.yearsToProject && (
           <span className="error">{errors.yearsToProject}</span>
+        )}
+        <div className="yield-selection">
+          <label>
+            <input
+              type="radio"
+              value="existing"
+              checked={useExistingYield}
+              onChange={() => setUseExistingYield(true)}
+            />
+            Use calculated yield
+          </label>
+          <label>
+            <input
+              type="radio"
+              value="manual"
+              checked={!useExistingYield}
+              onChange={() => setUseExistingYield(false)}
+            />
+            Enter manual yield
+          </label>
+        </div>
+
+        {!useExistingYield && (
+          <NumericFormat
+            suffix="%"
+            decimalScale={2}
+            placeholder="Manual Current Yield (%)"
+            value={manualCurrentYield}
+            onValueChange={(values) => {
+              const { value } = values;
+              setManualCurrentYield(value);
+            }}
+            className="input"
+          />
         )}
         <button onClick={compareNewInvestment} className="button">
           Compare New Investment
