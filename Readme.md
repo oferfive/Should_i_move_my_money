@@ -1,4 +1,4 @@
-`# Israeli Investment Analyzer
+# Should I move my money?
 
 This project is a browser-based investment analysis tool that helps compare current investments with potential new investment opportunities, taking into account factors such as deposits, yields, commissions, and inflation.
 
@@ -6,7 +6,7 @@ This project is a browser-based investment analysis tool that helps compare curr
 
 - Input multiple deposits with corresponding years
 - Enter current investment details (value, yield, commission)
-- Specify new investment parameters (yield, commission, transaction fee)
+- Specify new investment parameters (expected yield, commission, transaction fee)
 - Analyze and compare investments over a specified number of years
 - View results including break-even point and investment value projections
 - Visualize comparison with an interactive chart
@@ -48,14 +48,14 @@ This project is a browser-based investment analysis tool that helps compare curr
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please feel free fork, create a new branch, commit and submit a Pull Request.
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
 
-## Acknowledgments
+## Acknowledgments & Disclaimer
 
 - This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 - Charts are rendered using [Recharts](https://recharts.org/).
-
+- This tool was built out of good will, and the creator does not hold responsibility for any decisions made using this tool, as mistakes might occur.
