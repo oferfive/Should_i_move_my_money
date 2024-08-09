@@ -11,6 +11,17 @@ This project is a browser-based investment analysis tool that helps compare curr
 - View results including break-even point and investment value projections
 - Visualize comparison with an interactive chart
 
+## Versions
+
+### 1.1.0 (2024-08-10)
+
+- Added a Surtax ("MAs Yesef") for every Shekel above 721,560 NIS
+- Added predicitons for net amounts (net current investment, net new investment)
+
+### 1.0.0 (2024-07-15)
+
+- Initial release
+
 ## Getting Started
 
 ### Prerequisites
