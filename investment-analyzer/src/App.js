@@ -108,6 +108,12 @@ const IsraeliInvestmentAnalyzer = () => {
       0
     );
     const realGain = currentValue - adjustedTotalDeposited;
+  
+    let taxRate = 0.25; // Default tax rate
+    if (realGain > 721560) {
+      taxRate = 0.28; // Higher tax rate for gains above 721,560 NIS
+    }
+  
     return realGain > 0 ? realGain * taxRate : 0;
   };
 
