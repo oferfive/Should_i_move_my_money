@@ -94,6 +94,12 @@ const IsraeliInvestmentAnalyzer = () => {
     return cpiData[Math.max(...Object.keys(cpiData).map(Number))];
   };
 
+  const calculateNetAmount = (grossValue, initialValue, taxRate) => {
+    const realGain = grossValue - initialValue;
+    const taxAmount = realGain > 0 ? realGain * taxRate : 0;
+    return grossValue - taxAmount;
+  };
+
   const adjustForInflation = (deposits) => {
     const latestCPI = getLatestCPI();
     return deposits.map((deposit) => ({
@@ -161,107 +167,130 @@ const IsraeliInvestmentAnalyzer = () => {
   };
 
   const calculateCurrentInvestment = () => {
-    if (!validateCurrentInvestmentInputs()) {
-      return; // Stop if there are validation errors
-    }
+  if (!validateCurrentInvestmentInputs()) {
+    console.log("Validation errors:", errors);
+    return; // Stop if there are validation errors
+  }
+
+  const currentValueNum = parseFloat(currentValue);
+  console.log("Current Value Num:", currentValueNum);
   
-    const currentValueNum = parseFloat(currentValue);
-    const currentYieldNum = calculateCurrentYield(deposits, currentValueNum);
+  const adjustedDeposits = adjustForInflation(deposits);
+  console.log("Adjusted Deposits:", adjustedDeposits);
   
-    const adjustedDeposits = adjustForInflation(deposits);
-    const adjustedTotalDeposited = adjustedDeposits.reduce(
-      (sum, deposit) => sum + deposit.amount,
-      0
-    );
-    const realGain = currentValueNum - adjustedTotalDeposited;
-    const taxAmount = calculateTax(currentValueNum, adjustedDeposits);
-    const availableMoneyForNewInvestment = currentValueNum - taxAmount;
+  const adjustedTotalDeposited = adjustedDeposits.reduce(
+    (sum, deposit) => sum + deposit.amount,
+    0
+  );
+  console.log("Adjusted Total Deposited:", adjustedTotalDeposited);
   
-    setCurrentInvestmentResults({
-      currentYieldNum,
-      realGain,
-      taxAmount,
-      availableMoneyForNewInvestment,
+  const realGain = currentValueNum - adjustedTotalDeposited;
+  console.log("Real Gain:", realGain);
+  
+  const taxAmount = calculateTax(currentValueNum, adjustedDeposits);
+  console.log("Tax Amount:", taxAmount);
+  
+  const availableMoneyForNewInvestment = currentValueNum - taxAmount;
+  console.log("Available Money for New Investment:", availableMoneyForNewInvestment);
+
+  setCurrentInvestmentResults({
+    currentYieldNum: calculateCurrentYield(deposits, currentValueNum),
+    realGain,
+    taxAmount,
+    availableMoneyForNewInvestment,
+  });
+};
+
+const compareNewInvestment = () => {
+  if (!validateNewInvestmentInputs()) return;
+  if (!currentInvestmentResults) {
+    setErrors({
+      currentInvestment:
+        "Please calculate the current investment performance first.",
     });
-  
-    setErrors({});
-  };
+    return;
+  }
 
-  const compareNewInvestment = () => {
-    if (!validateNewInvestmentInputs()) return;
-    if (!currentInvestmentResults) {
-      setErrors({
-        currentInvestment:
-          "Please calculate the current investment performance first.",
-      });
-      return;
-    }
+  const currentYieldToUse = useExistingYield
+    ? currentInvestmentResults.currentYieldNum
+    : parseFloat(manualCurrentYield) / 100;
 
-    const currentYieldToUse = useExistingYield
-      ? currentInvestmentResults.currentYieldNum
-      : parseFloat(manualCurrentYield) / 100;
-    const newYieldNum = parseFloat(newYield) / 100;
-    const newCommissionNum = parseFloat(newCommission) / 100;
-    const newTransactionFeeNum = parseFloat(newTransactionFee) / 100;
-    const yearsToProjectNum = parseInt(yearsToProject);
-    const partialPercentage = parseFloat(partialInvestmentPercentage) / 100;
+  const newYieldNum = parseFloat(newYield) / 100;
+  const newCommissionNum = parseFloat(newCommission) / 100;
+  const newTransactionFeeNum = parseFloat(newTransactionFee) / 100;
+  const yearsToProjectNum = parseInt(yearsToProject);
+  const partialPercentage = parseFloat(partialInvestmentPercentage) / 100;
 
-    const partialInvestmentAmount =
-      currentInvestmentResults.availableMoneyForNewInvestment *
-      partialPercentage;
-    const remainingInvestmentAmount =
-      currentInvestmentResults.availableMoneyForNewInvestment *
-      (1 - partialPercentage);
+  // Use the gross initial value for the current investment as the starting point
+  const grossCurrentInvestment = parseFloat(currentValue);
 
-    const newProjection = projectInvestment(
-      partialInvestmentAmount,
-      newYieldNum,
-      newCommissionNum,
-      newTransactionFeeNum,
-      yearsToProjectNum
-    );
-    const remainingProjection = projectInvestment(
-      remainingInvestmentAmount,
-      currentYieldToUse,
-      parseFloat(currentCommission) / 100,
-      0,
-      yearsToProjectNum
-    );
-    const combinedNewProjection = newProjection.map(
-      (value, index) => value + remainingProjection[index]
-    );
-    const currentProjection = projectInvestment(
-      parseFloat(currentValue),
-      currentYieldToUse,
-      parseFloat(currentCommission) / 100,
-      0,
-      yearsToProjectNum
-    );
+  // Use the available money for projections
+  const netCurrentInvestment = currentInvestmentResults.availableMoneyForNewInvestment;
 
-    const breakEvenYear = findBreakEvenPoint(
-      currentProjection,
-      combinedNewProjection
-    );
-    const chartData = currentProjection.map((value, index) => ({
-      year: index,
-      current: value,
-      new: combinedNewProjection[index],
-      currentProjection: currentProjection,
-      newProjection: combinedNewProjection,
-    }));
+  const partialInvestmentAmount = netCurrentInvestment * partialPercentage;
+  const remainingInvestmentAmount = netCurrentInvestment * (1 - partialPercentage);
 
-    setComparisonResults({
-      currentFinalValue: currentProjection[yearsToProjectNum],
-      newFinalValue: combinedNewProjection[yearsToProjectNum],
-      breakEvenYear,
-      chartData,
-      recommendation:
-        combinedNewProjection[yearsToProjectNum] >
-        currentProjection[yearsToProjectNum]
-          ? "Consider moving the specified portion to the new investment mechanism."
-          : "Stay with the current investment mechanism.",
-    });
-  };
+  const newProjection = projectInvestment(
+    partialInvestmentAmount,
+    newYieldNum,
+    newCommissionNum,
+    newTransactionFeeNum,
+    yearsToProjectNum
+  );
+
+  const remainingProjection = projectInvestment(
+    remainingInvestmentAmount,
+    currentYieldToUse,
+    parseFloat(currentCommission) / 100,
+    0,
+    yearsToProjectNum
+  );
+
+  const combinedNewProjection = newProjection.map(
+    (value, index) => value + remainingProjection[index]
+  );
+
+  const currentProjection = projectInvestment(
+    grossCurrentInvestment,
+    currentYieldToUse,
+    parseFloat(currentCommission) / 100,
+    0,
+    yearsToProjectNum
+  );
+
+  // Calculate net values correctly
+  const netCurrentProjection = [netCurrentInvestment];
+  const netNewProjection = [netCurrentInvestment];
+
+  for (let i = 1; i <= yearsToProjectNum; i++) {
+    const currentGrossValue = currentProjection[i];
+    const newGrossValue = combinedNewProjection[i];
+
+    netCurrentProjection.push(calculateNetAmount(currentGrossValue, netCurrentInvestment, taxRate));
+    netNewProjection.push(calculateNetAmount(newGrossValue, netCurrentInvestment, taxRate));
+  }
+
+  const breakEvenYear = findBreakEvenPoint(netCurrentProjection, netNewProjection);
+
+  const chartData = currentProjection.map((value, index) => ({
+    year: index,
+    current: value,
+    new: combinedNewProjection[index],
+    netCurrent: netCurrentProjection[index],
+    netNew: netNewProjection[index],
+  }));
+
+  setComparisonResults({
+    currentFinalValue: currentProjection[yearsToProjectNum],
+    newFinalValue: combinedNewProjection[yearsToProjectNum],
+    breakEvenYear,
+    chartData,
+    recommendation:
+      netNewProjection[yearsToProjectNum] > netCurrentProjection[yearsToProjectNum]
+        ? "Consider moving the specified portion to the new investment mechanism."
+        : "Stay with the current investment mechanism.",
+  });
+};
 
   const numberFormatter = (value) => {
     return value.toLocaleString(undefined, {
@@ -271,23 +300,37 @@ const IsraeliInvestmentAnalyzer = () => {
   };
 
   const formatTooltip = (value, name, props) => {
-    let percentageChange = 0;
-
-    if (name === "Current Investment") {
-      percentageChange = (
-        (value / props.payload.currentProjection[0]) * 100 -
-        100
-      ).toFixed(2);
-    } else if (name === "New Investment") {
-      percentageChange = (
-        (value / props.payload.newProjection[0]) * 100 -
-        100
-      ).toFixed(2);
+  
+    // Define which names should not trigger any tooltip content
+    const noTooltipNames = ["Net Current Investment", "Net New Investment"];
+    
+    // Check if the current name is in the list of names that shouldn't show tooltip
+    if (noTooltipNames.includes(name)) {
+      return [];  // Return an empty array to suppress the tooltip entirely for these lines
     }
-
-    return [`₪${value.toLocaleString()}`, `(${percentageChange}%)`];
+  
+    // Proceed with normal tooltip formatting for other lines
+    const { current, new: newInvest, netCurrent, netNew } = props.payload;
+    const formatNumber = (num) => num.toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    });
+  
+    let tooltipContent = [];
+  
+    // Mapping names to their display content, excluding net values directly here
+    const dataMap = {
+      "Current Investment": `Existing investment: ₪${formatNumber(current)} (Net: ₪${formatNumber(netCurrent)})`,
+      "New Investment": `New investment: ₪${formatNumber(newInvest)} (Net: ₪${formatNumber(netNew)})`
+    };
+  
+    if (dataMap[name]) {
+      tooltipContent.push(dataMap[name]);
+    }
+  
+    return tooltipContent;
   };
-
+  
   return (
     <div className="container">
       <h1 className="title">Should I move my money?</h1>
@@ -508,19 +551,21 @@ const IsraeliInvestmentAnalyzer = () => {
           <h2>Results</h2>
           <ul style={{ margin: 0, paddingLeft: '1.2em' }}>
             <li style={{ marginBottom: '0.5em' }}>
-              Current investment value after {yearsToProject} years: ₪
+              Current investment gross value after {yearsToProject} years: ₪
               {comparisonResults.currentFinalValue.toLocaleString(undefined, {
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 0,
               })}
             </li>
+            
             <li style={{ marginBottom: '0.5em' }}>
-              New investment value after {yearsToProject} years: ₪
+              New investment gross value after {yearsToProject} years: ₪
               {comparisonResults.newFinalValue.toLocaleString(undefined, {
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 0,
               })}
             </li>
+            
             <li style={{ marginBottom: '0.5em' }}>Break-even point: {comparisonResults.breakEvenYear} years</li>
           </ul>
           <p>
@@ -532,7 +577,8 @@ const IsraeliInvestmentAnalyzer = () => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="year" />
               <YAxis tickFormatter={numberFormatter} />
-              <Tooltip formatter={formatTooltip} />
+              <Tooltip formatter={formatTooltip}
+              labelFormatter={(value) => `Years: ${value}`} />
               <Legend />
               <Line
                 type="monotone"
@@ -545,6 +591,22 @@ const IsraeliInvestmentAnalyzer = () => {
                 dataKey="new"
                 stroke="#82ca9d"
                 name="New Investment"
+              />
+              <Line
+                type="monotone"
+                dataKey="netCurrent"
+                stroke="#8884d8"
+                name="Net Current Investment"
+                strokeDasharray="5 5"
+                legendType="none"
+              />
+              <Line
+                type="monotone"
+                dataKey="netNew"
+                stroke="#82ca9d"
+                name="Net New Investment"
+                strokeDasharray="5 5"
+                legendType="none"
               />
             </LineChart>
           </ResponsiveContainer>
