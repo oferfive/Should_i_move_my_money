@@ -205,30 +205,44 @@ const compareNewInvestment = () => {
   if (!validateNewInvestmentInputs()) return;
   if (!currentInvestmentResults) {
     setErrors({
-      currentInvestment:
-        "Please calculate the current investment performance first.",
+      currentInvestment: "Please calculate the current investment performance first.",
     });
     return;
   }
 
+  console.log("--- Starting comparison calculations ---");
+
   const currentYieldToUse = useExistingYield
     ? currentInvestmentResults.currentYieldNum
     : parseFloat(manualCurrentYield) / 100;
+  console.log("Current yield to use:", currentYieldToUse);
 
   const newYieldNum = parseFloat(newYield) / 100;
   const newCommissionNum = parseFloat(newCommission) / 100;
   const newTransactionFeeNum = parseFloat(newTransactionFee) / 100;
   const yearsToProjectNum = parseInt(yearsToProject);
   const partialPercentage = parseFloat(partialInvestmentPercentage) / 100;
+  console.log("New yield:", newYieldNum, "New commission:", newCommissionNum, "New transaction fee:", newTransactionFeeNum);
+  console.log("Years to project:", yearsToProjectNum, "Partial percentage:", partialPercentage);
 
-  // Use the gross initial value for the current investment as the starting point
   const grossCurrentInvestment = parseFloat(currentValue);
-
-  // Use the available money for projections
   const netCurrentInvestment = currentInvestmentResults.availableMoneyForNewInvestment;
+  console.log("Gross current investment:", grossCurrentInvestment, "Net current investment:", netCurrentInvestment);
 
   const partialInvestmentAmount = netCurrentInvestment * partialPercentage;
   const remainingInvestmentAmount = netCurrentInvestment * (1 - partialPercentage);
+  console.log("Partial investment amount:", partialInvestmentAmount, "Remaining investment amount:", remainingInvestmentAmount);
+
+  // Project gross values
+  console.log("--- Projecting investments ---");
+  const currentProjection = projectInvestment(
+    grossCurrentInvestment,
+    currentYieldToUse,
+    parseFloat(currentCommission) / 100,
+    0,
+    yearsToProjectNum
+  );
+  console.log("Current projection:", currentProjection);
 
   const newProjection = projectInvestment(
     partialInvestmentAmount,
@@ -237,6 +251,7 @@ const compareNewInvestment = () => {
     newTransactionFeeNum,
     yearsToProjectNum
   );
+  console.log("New projection (partial):", newProjection);
 
   const remainingProjection = projectInvestment(
     remainingInvestmentAmount,
@@ -245,32 +260,45 @@ const compareNewInvestment = () => {
     0,
     yearsToProjectNum
   );
+  console.log("Remaining projection:", remainingProjection);
 
   const combinedNewProjection = newProjection.map(
     (value, index) => value + remainingProjection[index]
   );
+  console.log("Combined new projection:", combinedNewProjection);
 
-  const currentProjection = projectInvestment(
-    grossCurrentInvestment,
-    currentYieldToUse,
-    parseFloat(currentCommission) / 100,
-    0,
-    yearsToProjectNum
-  );
-
-  // Calculate net values correctly
+  // Calculate net values
+  console.log("--- Calculating net values ---");
   const netCurrentProjection = [netCurrentInvestment];
   const netNewProjection = [netCurrentInvestment];
+
+  // Use adjusted deposits instead of initial deposits
+  const adjustedTotalDeposits = adjustForInflation(deposits).reduce(
+    (sum, deposit) => sum + deposit.amount,
+    0
+  );
+  console.log("Adjusted total deposits:", adjustedTotalDeposits);
 
   for (let i = 1; i <= yearsToProjectNum; i++) {
     const currentGrossValue = currentProjection[i];
     const newGrossValue = combinedNewProjection[i];
 
-    netCurrentProjection.push(calculateNetAmount(currentGrossValue, netCurrentInvestment, taxRate));
-    netNewProjection.push(calculateNetAmount(newGrossValue, netCurrentInvestment, taxRate));
+    const netCurrentValue = calculateNetAmount(currentGrossValue, adjustedTotalDeposits, taxRate);
+    const netNewValue = calculateNetAmount(newGrossValue, adjustedTotalDeposits, taxRate);
+
+    netCurrentProjection.push(netCurrentValue);
+    netNewProjection.push(netNewValue);
+
+    console.log(`Year ${i}:`);
+    console.log(`  Current: Gross=${currentGrossValue}, Net=${netCurrentValue}`);
+    console.log(`  New: Gross=${newGrossValue}, Net=${netNewValue}`);
   }
 
+  console.log("Net current projection:", netCurrentProjection);
+  console.log("Net new projection:", netNewProjection);
+
   const breakEvenYear = findBreakEvenPoint(netCurrentProjection, netNewProjection);
+  console.log("Break-even year:", breakEvenYear);
 
   const chartData = currentProjection.map((value, index) => ({
     year: index,
@@ -279,6 +307,8 @@ const compareNewInvestment = () => {
     netCurrent: netCurrentProjection[index],
     netNew: netNewProjection[index],
   }));
+
+  console.log("Chart data:", chartData);
 
   setComparisonResults({
     currentFinalValue: currentProjection[yearsToProjectNum],
@@ -290,6 +320,8 @@ const compareNewInvestment = () => {
         ? "Consider moving the specified portion to the new investment mechanism."
         : "Stay with the current investment mechanism.",
   });
+
+  console.log("--- Comparison calculations complete ---");
 };
 
   const numberFormatter = (value) => {
