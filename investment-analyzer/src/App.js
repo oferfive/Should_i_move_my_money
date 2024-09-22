@@ -401,8 +401,8 @@ const IsraeliInvestmentAnalyzer = () => {
     const netCurrentProjection = [netCurrentInvestment];
     const netNewProjection = [netCurrentInvestment];
 
-    // Use adjusted deposits instead of initial deposits
-    const adjustedTotalDeposits = adjustForInflation(deposits, cpiData).reduce(
+    // Use adjusted deposits with fetchedCPIData
+    const adjustedTotalDeposits = adjustForInflation(deposits, fetchedCPIData).reduce(
       (sum, deposit) => sum + deposit.amount,
       0
     );
