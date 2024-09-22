@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   LineChart,
   Line,
@@ -11,9 +11,11 @@ import {
 } from "recharts";
 import "./App.css";
 import { NumericFormat } from 'react-number-format';
+import axios from "axios";
 
 const IsraeliInvestmentAnalyzer = () => {
-  const [deposits, setDeposits] = useState([{ year: "", amount: "" }]);
+  const [useMonthlyData, setUseMonthlyData] = useState(false);
+  const [deposits, setDeposits] = useState([{ year: "", month: "", amount: "" }]);
   const [currentValue, setCurrentValue] = useState("");
   const [currentCommission, setCurrentCommission] = useState("");
   const [currentInvestmentResults, setCurrentInvestmentResults] =
@@ -33,7 +35,11 @@ const IsraeliInvestmentAnalyzer = () => {
   const [manualCurrentYield, setManualCurrentYield] = useState("");
 
   const taxRate = 0.25;
-  const cpiData = {
+  const [cpiData, setCpiData] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Static CPI data for fallback
+  const staticCpiData = {
     2015: 100.0,
     2016: 100.0,
     2017: 100.2,
@@ -46,8 +52,74 @@ const IsraeliInvestmentAnalyzer = () => {
     2024: 113.8,
   };
 
+  const fetchCPIData = async (startYear, endYear) => {
+    setIsLoading(true);
+    try {
+      console.log(`Fetching CPI data from ${startYear} to ${endYear}`);
+      let allData = [];
+      let currentPage = 1;
+      let hasNextPage = true;
+
+      while (hasNextPage) {
+        const response = await axios.get(`https://api.cbs.gov.il/index/data/price`, {
+          params: {
+            id: 120010,
+            startPeriod: `01-${startYear}`,
+            endPeriod: `12-${endYear}`,
+            format: 'json',
+            download: false,
+            lang: 'en',
+            page: currentPage
+          }
+        });
+        
+        console.log(`Raw API response for page ${currentPage}:`, response.data);
+        
+        allData = [...allData, ...response.data.month[0].date];
+        
+        hasNextPage = response.data.paging.next_url !== null;
+        currentPage++;
+      }
+
+      console.log("All fetched data:", allData);
+
+      const monthlyData = {};
+      allData.forEach(item => {
+        if (!monthlyData[item.year]) {
+          monthlyData[item.year] = {};
+        }
+        monthlyData[item.year][item.month] = item.currBase.value;
+      });
+
+      if (!useMonthlyData) {
+        // Calculate average CPI for each year
+        const averagedData = {};
+        for (const year in monthlyData) {
+          const yearData = Object.values(monthlyData[year]);
+          averagedData[year] = yearData.reduce((sum, value) => sum + value, 0) / yearData.length;
+        }
+        console.log("Averaged CPI data:", averagedData);
+        setCpiData(averagedData);
+        return averagedData;
+      } else {
+        console.log("Monthly CPI data:", monthlyData);
+        setCpiData(monthlyData);
+        return monthlyData;
+      }
+    } catch (error) {
+      console.error("Error fetching CPI data:", error);
+      console.log("Using static CPI data as fallback");
+      setErrors(prevErrors => ({...prevErrors, api: "Failed to fetch CPI data. Using static data as fallback."}));
+      
+      // Use static data as fallback
+      return staticCpiData;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleAddDeposit = () => {
-    setDeposits([...deposits, { year: "", amount: "" }]);
+    setDeposits([...deposits, { year: "", month: useMonthlyData ? "" : undefined, amount: "" }]);
   };
 
   const validateCurrentInvestmentInputs = () => {
@@ -90,22 +162,57 @@ const IsraeliInvestmentAnalyzer = () => {
     setDeposits(newDeposits);
   };
 
-  const getLatestCPI = () => {
-    return cpiData[Math.max(...Object.keys(cpiData).map(Number))];
-  };
-
-  const calculateNetAmount = (grossValue, initialValue, taxRate) => {
-    const realGain = grossValue - initialValue;
-    const taxAmount = realGain > 0 ? realGain * taxRate : 0;
-    return grossValue - taxAmount;
-  };
-
-  const adjustForInflation = (deposits) => {
+  const adjustForInflation = (deposits, cpiData) => {
+    console.log("CPI data in adjustForInflation:", cpiData);
+    if (Object.keys(cpiData).length === 0) {
+      console.error("CPI data is not available");
+      return deposits;
+    }
+    
+    const getLatestCPI = () => {
+      if (useMonthlyData) {
+        const latestYear = Math.max(...Object.keys(cpiData).map(Number));
+        const latestMonth = Math.max(...Object.keys(cpiData[latestYear]).map(Number));
+        return cpiData[latestYear][latestMonth];
+      } else {
+        return Math.max(...Object.values(cpiData));
+      }
+    };
+    
     const latestCPI = getLatestCPI();
-    return deposits.map((deposit) => ({
-      year: parseInt(deposit.year),
-      amount: parseFloat(deposit.amount) * (latestCPI / cpiData[deposit.year]),
-    }));
+    console.log("Latest CPI:", latestCPI);
+    
+    return deposits.map((deposit) => {
+      const depositYear = parseInt(deposit.year);
+      const depositMonth = useMonthlyData ? parseInt(deposit.month) : 12; // Use December for yearly data
+      console.log(`Processing deposit for year ${depositYear}${useMonthlyData ? `, month ${depositMonth}` : ''}`);
+      
+      let depositCPI;
+      if (useMonthlyData) {
+        if (!cpiData[depositYear] || !cpiData[depositYear][depositMonth]) {
+          console.warn(`No CPI data for year ${depositYear}, month ${depositMonth}, using latest CPI`);
+          depositCPI = latestCPI;
+        } else {
+          depositCPI = cpiData[depositYear][depositMonth];
+        }
+      } else {
+        if (!cpiData[depositYear]) {
+          console.warn(`No CPI data for year ${depositYear}, using latest CPI`);
+          depositCPI = latestCPI;
+        } else {
+          depositCPI = cpiData[depositYear];
+        }
+      }
+      
+      console.log(`CPI for ${depositYear}${useMonthlyData ? `-${depositMonth}` : ''}: ${depositCPI}`);
+      const adjustedAmount = parseFloat(deposit.amount) * (latestCPI / depositCPI);
+      console.log(`Original amount: ${deposit.amount}, Adjusted amount: ${adjustedAmount}`);
+      return {
+        year: depositYear,
+        month: useMonthlyData ? depositMonth : undefined,
+        amount: adjustedAmount,
+      };
+    });
   };
 
   const calculateTax = (currentValue, adjustedDeposits) => {
@@ -166,163 +273,185 @@ const IsraeliInvestmentAnalyzer = () => {
     return "Never";
   };
 
-  const calculateCurrentInvestment = () => {
-  if (!validateCurrentInvestmentInputs()) {
-    console.log("Validation errors:", errors);
-    return; // Stop if there are validation errors
-  }
+  const calculateCurrentInvestment = async () => {
+    if (!validateCurrentInvestmentInputs()) {
+      console.log("Validation errors:", errors);
+      return;
+    }
 
-  const currentValueNum = parseFloat(currentValue);
-  console.log("Current Value Num:", currentValueNum);
-  
-  const adjustedDeposits = adjustForInflation(deposits);
-  console.log("Adjusted Deposits:", adjustedDeposits);
-  
-  const adjustedTotalDeposited = adjustedDeposits.reduce(
-    (sum, deposit) => sum + deposit.amount,
-    0
-  );
-  console.log("Adjusted Total Deposited:", adjustedTotalDeposited);
-  
-  const realGain = currentValueNum - adjustedTotalDeposited;
-  console.log("Real Gain:", realGain);
-  
-  const taxAmount = calculateTax(currentValueNum, adjustedDeposits);
-  console.log("Tax Amount:", taxAmount);
-  
-  const availableMoneyForNewInvestment = currentValueNum - taxAmount;
-  console.log("Available Money for New Investment:", availableMoneyForNewInvestment);
+    setIsLoading(true);
 
-  setCurrentInvestmentResults({
-    currentYieldNum: calculateCurrentYield(deposits, currentValueNum),
-    realGain,
-    taxAmount,
-    availableMoneyForNewInvestment,
-  });
-};
+    // Determine the year range for CPI data
+    const depositYears = deposits.map(d => parseInt(d.year));
+    const startYear = Math.min(...depositYears);
+    const endYear = new Date().getFullYear();
 
-const compareNewInvestment = () => {
-  if (!validateNewInvestmentInputs()) return;
-  if (!currentInvestmentResults) {
-    setErrors({
-      currentInvestment: "Please calculate the current investment performance first.",
+    // Fetch CPI data
+    const fetchedCPIData = await fetchCPIData(startYear, endYear);
+    
+    console.log("Fetched CPI data:", fetchedCPIData);
+
+    const currentValueNum = parseFloat(currentValue);
+    console.log("Current Value Num:", currentValueNum);
+  
+    const adjustedDeposits = adjustForInflation(deposits, fetchedCPIData);
+    console.log("Adjusted Deposits:", adjustedDeposits);
+  
+    const adjustedTotalDeposited = adjustedDeposits.reduce(
+      (sum, deposit) => sum + deposit.amount,
+      0
+    );
+    console.log("Adjusted Total Deposited:", adjustedTotalDeposited);
+  
+    const realGain = currentValueNum - adjustedTotalDeposited;
+    console.log("Real Gain:", realGain);
+  
+    const taxAmount = calculateTax(currentValueNum, adjustedDeposits);
+    console.log("Tax Amount:", taxAmount);
+  
+    const availableMoneyForNewInvestment = currentValueNum - taxAmount;
+    console.log("Available Money for New Investment:", availableMoneyForNewInvestment);
+
+    setCurrentInvestmentResults({
+      currentYieldNum: calculateCurrentYield(deposits, currentValueNum),
+      realGain,
+      taxAmount,
+      availableMoneyForNewInvestment,
     });
-    return;
-  }
 
-  console.log("--- Starting comparison calculations ---");
+    setIsLoading(false);
+  };
 
-  const currentYieldToUse = useExistingYield
-    ? currentInvestmentResults.currentYieldNum
-    : parseFloat(manualCurrentYield) / 100;
-  console.log("Current yield to use:", currentYieldToUse);
+  const compareNewInvestment = async () => {
+    if (!validateNewInvestmentInputs()) return;
+    if (!currentInvestmentResults) {
+      setErrors({
+        currentInvestment: "Please calculate the current investment performance first.",
+      });
+      return;
+    }
 
-  const newYieldNum = parseFloat(newYield) / 100;
-  const newCommissionNum = parseFloat(newCommission) / 100;
-  const newTransactionFeeNum = parseFloat(newTransactionFee) / 100;
-  const yearsToProjectNum = parseInt(yearsToProject);
-  const partialPercentage = parseFloat(partialInvestmentPercentage) / 100;
-  console.log("New yield:", newYieldNum, "New commission:", newCommissionNum, "New transaction fee:", newTransactionFeeNum);
-  console.log("Years to project:", yearsToProjectNum, "Partial percentage:", partialPercentage);
+    // Determine the year range for CPI data
+    const depositYears = deposits.map(d => parseInt(d.year));
+    const startYear = Math.min(...depositYears);
+    const endYear = new Date().getFullYear() + parseInt(yearsToProject);
 
-  const grossCurrentInvestment = parseFloat(currentValue);
-  const netCurrentInvestment = currentInvestmentResults.availableMoneyForNewInvestment;
-  console.log("Gross current investment:", grossCurrentInvestment, "Net current investment:", netCurrentInvestment);
+    // Fetch CPI data
+    const fetchedCPIData = await fetchCPIData(startYear, endYear);
 
-  const partialInvestmentAmount = netCurrentInvestment * partialPercentage;
-  const remainingInvestmentAmount = netCurrentInvestment * (1 - partialPercentage);
-  console.log("Partial investment amount:", partialInvestmentAmount, "Remaining investment amount:", remainingInvestmentAmount);
+    console.log("--- Starting comparison calculations ---");
 
-  // Project gross values
-  console.log("--- Projecting investments ---");
-  const currentProjection = projectInvestment(
-    grossCurrentInvestment,
-    currentYieldToUse,
-    parseFloat(currentCommission) / 100,
-    0,
-    yearsToProjectNum
-  );
-  console.log("Current projection:", currentProjection);
+    const currentYieldToUse = useExistingYield
+      ? currentInvestmentResults.currentYieldNum
+      : parseFloat(manualCurrentYield) / 100;
+    console.log("Current yield to use:", currentYieldToUse);
 
-  const newProjection = projectInvestment(
-    partialInvestmentAmount,
-    newYieldNum,
-    newCommissionNum,
-    newTransactionFeeNum,
-    yearsToProjectNum
-  );
-  console.log("New projection (partial):", newProjection);
+    const newYieldNum = parseFloat(newYield) / 100;
+    const newCommissionNum = parseFloat(newCommission) / 100;
+    const newTransactionFeeNum = parseFloat(newTransactionFee) / 100;
+    const yearsToProjectNum = parseInt(yearsToProject);
+    const partialPercentage = parseFloat(partialInvestmentPercentage) / 100;
+    console.log("New yield:", newYieldNum, "New commission:", newCommissionNum, "New transaction fee:", newTransactionFeeNum);
+    console.log("Years to project:", yearsToProjectNum, "Partial percentage:", partialPercentage);
 
-  const remainingProjection = projectInvestment(
-    remainingInvestmentAmount,
-    currentYieldToUse,
-    parseFloat(currentCommission) / 100,
-    0,
-    yearsToProjectNum
-  );
-  console.log("Remaining projection:", remainingProjection);
+    const grossCurrentInvestment = parseFloat(currentValue);
+    const netCurrentInvestment = currentInvestmentResults.availableMoneyForNewInvestment;
+    console.log("Gross current investment:", grossCurrentInvestment, "Net current investment:", netCurrentInvestment);
 
-  const combinedNewProjection = newProjection.map(
-    (value, index) => value + remainingProjection[index]
-  );
-  console.log("Combined new projection:", combinedNewProjection);
+    const partialInvestmentAmount = netCurrentInvestment * partialPercentage;
+    const remainingInvestmentAmount = netCurrentInvestment * (1 - partialPercentage);
+    console.log("Partial investment amount:", partialInvestmentAmount, "Remaining investment amount:", remainingInvestmentAmount);
 
-  // Calculate net values
-  console.log("--- Calculating net values ---");
-  const netCurrentProjection = [netCurrentInvestment];
-  const netNewProjection = [netCurrentInvestment];
+    // Project gross values
+    console.log("--- Projecting investments ---");
+    const currentProjection = projectInvestment(
+      grossCurrentInvestment,
+      currentYieldToUse,
+      parseFloat(currentCommission) / 100,
+      0,
+      yearsToProjectNum
+    );
+    console.log("Current projection:", currentProjection);
 
-  // Use adjusted deposits instead of initial deposits
-  const adjustedTotalDeposits = adjustForInflation(deposits).reduce(
-    (sum, deposit) => sum + deposit.amount,
-    0
-  );
-  console.log("Adjusted total deposits:", adjustedTotalDeposits);
+    const newProjection = projectInvestment(
+      partialInvestmentAmount,
+      newYieldNum,
+      newCommissionNum,
+      newTransactionFeeNum,
+      yearsToProjectNum
+    );
+    console.log("New projection (partial):", newProjection);
 
-  for (let i = 1; i <= yearsToProjectNum; i++) {
-    const currentGrossValue = currentProjection[i];
-    const newGrossValue = combinedNewProjection[i];
+    const remainingProjection = projectInvestment(
+      remainingInvestmentAmount,
+      currentYieldToUse,
+      parseFloat(currentCommission) / 100,
+      0,
+      yearsToProjectNum
+    );
+    console.log("Remaining projection:", remainingProjection);
 
-    const netCurrentValue = calculateNetAmount(currentGrossValue, adjustedTotalDeposits, taxRate);
-    const netNewValue = calculateNetAmount(newGrossValue, adjustedTotalDeposits, taxRate);
+    const combinedNewProjection = newProjection.map(
+      (value, index) => value + remainingProjection[index]
+    );
+    console.log("Combined new projection:", combinedNewProjection);
 
-    netCurrentProjection.push(netCurrentValue);
-    netNewProjection.push(netNewValue);
+    // Calculate net values
+    console.log("--- Calculating net values ---");
+    const netCurrentProjection = [netCurrentInvestment];
+    const netNewProjection = [netCurrentInvestment];
 
-    console.log(`Year ${i}:`);
-    console.log(`  Current: Gross=${currentGrossValue}, Net=${netCurrentValue}`);
-    console.log(`  New: Gross=${newGrossValue}, Net=${netNewValue}`);
-  }
+    // Use adjusted deposits instead of initial deposits
+    const adjustedTotalDeposits = adjustForInflation(deposits, cpiData).reduce(
+      (sum, deposit) => sum + deposit.amount,
+      0
+    );
+    console.log("Adjusted total deposits:", adjustedTotalDeposits);
 
-  console.log("Net current projection:", netCurrentProjection);
-  console.log("Net new projection:", netNewProjection);
+    for (let i = 1; i <= yearsToProjectNum; i++) {
+      const currentGrossValue = currentProjection[i];
+      const newGrossValue = combinedNewProjection[i];
 
-  const breakEvenYear = findBreakEvenPoint(netCurrentProjection, netNewProjection);
-  console.log("Break-even year:", breakEvenYear);
+      const netCurrentValue = calculateNetAmount(currentGrossValue, adjustedTotalDeposits, taxRate);
+      const netNewValue = calculateNetAmount(newGrossValue, adjustedTotalDeposits, taxRate);
 
-  const chartData = currentProjection.map((value, index) => ({
-    year: index,
-    current: value,
-    new: combinedNewProjection[index],
-    netCurrent: netCurrentProjection[index],
-    netNew: netNewProjection[index],
-  }));
+      netCurrentProjection.push(netCurrentValue);
+      netNewProjection.push(netNewValue);
 
-  console.log("Chart data:", chartData);
+      console.log(`Year ${i}:`);
+      console.log(`  Current: Gross=${currentGrossValue}, Net=${netCurrentValue}`);
+      console.log(`  New: Gross=${newGrossValue}, Net=${netNewValue}`);
+    }
 
-  setComparisonResults({
-    currentFinalValue: currentProjection[yearsToProjectNum],
-    newFinalValue: combinedNewProjection[yearsToProjectNum],
-    breakEvenYear,
-    chartData,
-    recommendation:
-      netNewProjection[yearsToProjectNum] > netCurrentProjection[yearsToProjectNum]
-        ? "Consider moving the specified portion to the new investment mechanism."
-        : "Stay with the current investment mechanism.",
-  });
+    console.log("Net current projection:", netCurrentProjection);
+    console.log("Net new projection:", netNewProjection);
 
-  console.log("--- Comparison calculations complete ---");
-};
+    const breakEvenYear = findBreakEvenPoint(netCurrentProjection, netNewProjection);
+    console.log("Break-even year:", breakEvenYear);
+
+    const chartData = currentProjection.map((value, index) => ({
+      year: index,
+      current: value,
+      new: combinedNewProjection[index],
+      netCurrent: netCurrentProjection[index],
+      netNew: netNewProjection[index],
+    }));
+
+    console.log("Chart data:", chartData);
+
+    setComparisonResults({
+      currentFinalValue: currentProjection[yearsToProjectNum],
+      newFinalValue: combinedNewProjection[yearsToProjectNum],
+      breakEvenYear,
+      chartData,
+      recommendation:
+        netNewProjection[yearsToProjectNum] > netCurrentProjection[yearsToProjectNum]
+          ? "Consider moving the specified portion to the new investment mechanism."
+          : "Stay with the current investment mechanism.",
+    });
+
+    console.log("--- Comparison calculations complete ---");
+  };
 
   const numberFormatter = (value) => {
     return value.toLocaleString(undefined, {
@@ -363,11 +492,38 @@ const compareNewInvestment = () => {
     return tooltipContent;
   };
   
+  useEffect(() => {
+    console.log("CPI data updated:", cpiData);
+  }, [cpiData]);
+  
+  const calculateNetAmount = (grossValue, initialValue, taxRate) => {
+    const realGain = grossValue - initialValue;
+    const taxAmount = realGain > 0 ? realGain * taxRate : 0;
+    return grossValue - taxAmount;
+  };
+  
   return (
     <div className="container">
       <h1 className="title">Should I move my money?</h1>
       <div className="card">
         <h2>Current investment</h2>
+
+        <div className="data-frequency-selection">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={useMonthlyData}
+              onChange={(e) => setUseMonthlyData(e.target.checked)}
+            />
+            Use monthly data
+          </label>
+          <span 
+            className="tooltip-icon" 
+            data-tooltip="Monthly data will generate more accurate results due to CPI changes"
+          >
+            ?
+          </span>
+        </div>
 
         <h3>Deposits</h3>
         {deposits.map((deposit, index) => (
@@ -381,6 +537,22 @@ const compareNewInvestment = () => {
               }
               className="input"
             />
+            {useMonthlyData && (
+              <select
+                value={deposit.month}
+                onChange={(e) =>
+                  handleDepositChange(index, "month", e.target.value)
+                }
+                className="input"
+              >
+                <option value="">Month</option>
+                {[...Array(12)].map((_, i) => (
+                  <option key={i} value={i + 1}>
+                    {i + 1}
+                  </option>
+                ))}
+              </select>
+            )}
             <NumericFormat
               thousandSeparator=","
               prefix="₪"
@@ -401,7 +573,7 @@ const compareNewInvestment = () => {
           </div>
         ))}
         <button onClick={handleAddDeposit} className="button-secondary">
-          + Add year
+          + Add deposit
         </button>
         <hr className="divider" />
         {errors.deposits && <span className="error">{errors.deposits}</span>}
@@ -644,6 +816,8 @@ const compareNewInvestment = () => {
           </ResponsiveContainer>
         </div>
       )}
+      {isLoading && <div className="loading">Loading...</div>}
+      {errors.api && <div className="error">{errors.api}</div>}
     </div>
   );
 };
