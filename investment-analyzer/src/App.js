@@ -15,7 +15,7 @@ import axios from "axios";
 
 const IsraeliInvestmentAnalyzer = () => {
   const [useMonthlyData, setUseMonthlyData] = useState(false);
-  const [deposits, setDeposits] = useState([{ year: "", month: "", amount: "" }]);
+  const [deposits, setDeposits] = useState([{ year: "", startMonth: "", endMonth: "", amount: "" }]);
   const [currentValue, setCurrentValue] = useState("");
   const [currentCommission, setCurrentCommission] = useState("");
   const [currentInvestmentResults, setCurrentInvestmentResults] =
@@ -119,13 +119,13 @@ const IsraeliInvestmentAnalyzer = () => {
   };
 
   const handleAddDeposit = () => {
-    setDeposits([...deposits, { year: "", month: useMonthlyData ? "" : undefined, amount: "" }]);
+    setDeposits([...deposits, { year: "", startMonth: "", endMonth: "", amount: "" }]);
   };
 
   const validateCurrentInvestmentInputs = () => {
     const newErrors = {};
 
-    if (deposits.some((d) => !d.year || !d.amount)) {
+    if (deposits.some((d) => !d.year || !d.amount || (useMonthlyData && (!d.startMonth || !d.endMonth)))) {
       newErrors.deposits = "All deposit fields must be filled";
     }
 
@@ -182,36 +182,35 @@ const IsraeliInvestmentAnalyzer = () => {
     const latestCPI = getLatestCPI();
     console.log("Latest CPI:", latestCPI);
     
-    return deposits.map((deposit) => {
+    return deposits.flatMap((deposit) => {
       const depositYear = parseInt(deposit.year);
-      const depositMonth = useMonthlyData ? parseInt(deposit.month) : 12; // Use December for yearly data
-      console.log(`Processing deposit for year ${depositYear}${useMonthlyData ? `, month ${depositMonth}` : ''}`);
-      
-      let depositCPI;
+      const amount = parseFloat(deposit.amount);
+
       if (useMonthlyData) {
-        if (!cpiData[depositYear] || !cpiData[depositYear][depositMonth]) {
-          console.warn(`No CPI data for year ${depositYear}, month ${depositMonth}, using latest CPI`);
-          depositCPI = latestCPI;
-        } else {
-          depositCPI = cpiData[depositYear][depositMonth];
+        const startMonth = parseInt(deposit.startMonth);
+        const endMonth = parseInt(deposit.endMonth);
+        let adjustedDeposits = [];
+
+        for (let month = startMonth; month <= endMonth; month++) {
+          let depositCPI = cpiData[depositYear] && cpiData[depositYear][month] 
+            ? cpiData[depositYear][month] 
+            : latestCPI;
+          const adjustedAmount = amount * (latestCPI / depositCPI);
+          adjustedDeposits.push({
+            year: depositYear,
+            month,
+            amount: adjustedAmount,
+          });
         }
+        return adjustedDeposits;
       } else {
-        if (!cpiData[depositYear]) {
-          console.warn(`No CPI data for year ${depositYear}, using latest CPI`);
-          depositCPI = latestCPI;
-        } else {
-          depositCPI = cpiData[depositYear];
-        }
+        let depositCPI = cpiData[depositYear] || latestCPI;
+        const adjustedAmount = amount * (latestCPI / depositCPI);
+        return [{
+          year: depositYear,
+          amount: adjustedAmount,
+        }];
       }
-      
-      console.log(`CPI for ${depositYear}${useMonthlyData ? `-${depositMonth}` : ''}: ${depositCPI}`);
-      const adjustedAmount = parseFloat(deposit.amount) * (latestCPI / depositCPI);
-      console.log(`Original amount: ${deposit.amount}, Adjusted amount: ${adjustedAmount}`);
-      return {
-        year: depositYear,
-        month: useMonthlyData ? depositMonth : undefined,
-        amount: adjustedAmount,
-      };
     });
   };
 
@@ -231,21 +230,62 @@ const IsraeliInvestmentAnalyzer = () => {
   };
 
   const calculateCurrentYield = (deposits, currentValue) => {
-    const totalDeposited = deposits.reduce(
-      (sum, deposit) => sum + parseFloat(deposit.amount),
-      0
-    );
+    console.log("--- Starting calculateCurrentYield ---");
+    console.log("Deposits:", deposits);
+    console.log("Current Value:", currentValue);
 
-    // Find the first year with deposits
-    const years = deposits.map((d) => parseInt(d.year));
-    const firstYear = Math.min(...years);
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
 
-    // Use the actual current year
-    const currentYear = new Date().getFullYear();
-    const investmentDuration = currentYear - firstYear + 1;
+    console.log("Current Year:", currentYear);
+    console.log("Current Month:", currentMonth);
 
-    const overallYield = (currentValue - totalDeposited) / totalDeposited;
-    const annualYield = (1 + overallYield) ** (1 / investmentDuration) - 1;
+    let totalInvestment = 0;
+    let weightedTime = 0;
+
+    deposits.forEach(deposit => {
+      const depositYear = parseInt(deposit.year);
+      const depositAmount = parseFloat(deposit.amount);
+
+      console.log(`Processing deposit: Year ${depositYear}, Amount ${depositAmount}`);
+
+      if (useMonthlyData) {
+        const startMonth = parseInt(deposit.startMonth);
+        const endMonth = parseInt(deposit.endMonth);
+        
+        console.log(`Monthly data: Start Month ${startMonth}, End Month ${endMonth}`);
+
+        for (let month = startMonth; month <= endMonth; month++) {
+          const yearsElapsed = (currentYear - depositYear) + (currentMonth - month) / 12;
+          const monthlyAmount = depositAmount;
+          totalInvestment += monthlyAmount;
+          weightedTime += monthlyAmount * (1 - yearsElapsed / (currentYear - depositYear + 1));
+
+          console.log(`Month ${month}: Years Elapsed ${yearsElapsed.toFixed(2)}, Running Total ${totalInvestment.toFixed(2)}, Weighted Time ${weightedTime.toFixed(2)}`);
+        }
+      } else {
+        const yearsElapsed = currentYear - depositYear + (currentMonth - 1) / 12;
+        totalInvestment += depositAmount;
+        weightedTime += depositAmount * (1 - yearsElapsed / (currentYear - depositYear + 1));
+
+        console.log(`Yearly data: Years Elapsed ${yearsElapsed.toFixed(2)}, Running Total ${totalInvestment.toFixed(2)}, Weighted Time ${weightedTime.toFixed(2)}`);
+      }
+    });
+
+    console.log("Final Total Investment:", totalInvestment.toFixed(2));
+    console.log("Final Weighted Time:", weightedTime.toFixed(2));
+
+    const averageInvestmentTime = weightedTime / totalInvestment;
+    console.log("Average Investment Time:", averageInvestmentTime.toFixed(2));
+
+    const totalReturn = (currentValue / totalInvestment) - 1;
+    console.log("Total Return:", totalReturn.toFixed(4));
+
+    const annualYield = Math.pow(1 + totalReturn, 1 / (currentYear - Math.min(...deposits.map(d => parseInt(d.year))) + 1)) - 1;
+    console.log("Calculated Annual Yield:", annualYield.toFixed(4));
+
+    console.log("--- Ending calculateCurrentYield ---");
 
     return annualYield;
   };
@@ -538,25 +578,41 @@ const IsraeliInvestmentAnalyzer = () => {
               className="input"
             />
             {useMonthlyData && (
-              <select
-                value={deposit.month}
-                onChange={(e) =>
-                  handleDepositChange(index, "month", e.target.value)
-                }
-                className="input"
-              >
-                <option value="">Month</option>
-                {[...Array(12)].map((_, i) => (
-                  <option key={i} value={i + 1}>
-                    {i + 1}
-                  </option>
-                ))}
-              </select>
+              <>
+                <select
+                  value={deposit.startMonth}
+                  onChange={(e) =>
+                    handleDepositChange(index, "startMonth", e.target.value)
+                  }
+                  className="input"
+                >
+                  <option value="">Start Month</option>
+                  {[...Array(12)].map((_, i) => (
+                    <option key={i} value={i + 1}>
+                      {i + 1}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={deposit.endMonth}
+                  onChange={(e) =>
+                    handleDepositChange(index, "endMonth", e.target.value)
+                  }
+                  className="input"
+                >
+                  <option value="">End Month</option>
+                  {[...Array(12)].map((_, i) => (
+                    <option key={i} value={i + 1}>
+                      {i + 1}
+                    </option>
+                  ))}
+                </select>
+              </>
             )}
             <NumericFormat
               thousandSeparator=","
               prefix="₪"
-              placeholder="Amount"
+              placeholder={useMonthlyData ? "Amount per month" : "Amount"}
               value={deposit.amount}
               onValueChange={(values) => {
                 const { value } = values;
