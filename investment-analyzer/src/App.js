@@ -36,14 +36,6 @@ const IsraeliInvestmentAnalyzer = () => {
 
   const taxRate = 0.25;
 
-  const calculateRealValue = (nominalValue, dateString) => {
-    const cpiValue = getCPIValue(dateString);
-    if (!cpiValue) return null;
-    
-    const currentCPI = cpiData[0].value; // Most recent CPI value
-    return (nominalValue * currentCPI) / cpiValue;
-  };
-
   const handleAddDeposit = () => {
     setDeposits([...deposits, { year: "", startMonth: "", endMonth: "", amount: "" }]);
   };
