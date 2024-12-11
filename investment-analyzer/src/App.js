@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   LineChart,
   Line,
@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import "./App.css";
 import { NumericFormat } from 'react-number-format';
-import axios from "axios";
+import { getCPIValue, cpiData } from './cpiData';
 
 const IsraeliInvestmentAnalyzer = () => {
   const [useMonthlyData, setUseMonthlyData] = useState(false);
@@ -35,87 +35,13 @@ const IsraeliInvestmentAnalyzer = () => {
   const [manualCurrentYield, setManualCurrentYield] = useState("");
 
   const taxRate = 0.25;
-  const [cpiData, setCpiData] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
 
-  // Static CPI data for fallback
-  const staticCpiData = {
-    2015: 100.0,
-    2016: 100.0,
-    2017: 100.2,
-    2018: 101.0,
-    2019: 101.9,
-    2020: 101.3,
-    2021: 102.8,
-    2022: 107.3,
-    2023: 111.8,
-    2024: 113.8,
-  };
-
-  const fetchCPIData = async (startYear, endYear) => {
-    setIsLoading(true);
-    try {
-      console.log(`Fetching CPI data from ${startYear} to ${endYear}`);
-      let allData = [];
-      let currentPage = 1;
-      let hasNextPage = true;
-
-      while (hasNextPage) {
-        const response = await axios.get(`https://api.cbs.gov.il/index/data/price`, {
-          params: {
-            id: 120010,
-            startPeriod: `01-${startYear}`,
-            endPeriod: `12-${endYear}`,
-            format: 'json',
-            download: false,
-            lang: 'en',
-            page: currentPage
-          }
-        });
-        
-        console.log(`Raw API response for page ${currentPage}:`, response.data);
-        
-        allData = [...allData, ...response.data.month[0].date];
-        
-        hasNextPage = response.data.paging.next_url !== null;
-        currentPage++;
-      }
-
-      console.log("All fetched data:", allData);
-
-      const monthlyData = {};
-      allData.forEach(item => {
-        if (!monthlyData[item.year]) {
-          monthlyData[item.year] = {};
-        }
-        monthlyData[item.year][item.month] = item.currBase.value;
-      });
-
-      if (!useMonthlyData) {
-        // Calculate average CPI for each year
-        const averagedData = {};
-        for (const year in monthlyData) {
-          const yearData = Object.values(monthlyData[year]);
-          averagedData[year] = yearData.reduce((sum, value) => sum + value, 0) / yearData.length;
-        }
-        console.log("Averaged CPI data:", averagedData);
-        setCpiData(averagedData);
-        return averagedData;
-      } else {
-        console.log("Monthly CPI data:", monthlyData);
-        setCpiData(monthlyData);
-        return monthlyData;
-      }
-    } catch (error) {
-      console.error("Error fetching CPI data:", error);
-      console.log("Using static CPI data as fallback");
-      setErrors(prevErrors => ({...prevErrors, api: "Failed to fetch CPI data. Using static data as fallback."}));
-      
-      // Use static data as fallback
-      return staticCpiData;
-    } finally {
-      setIsLoading(false);
-    }
+  const calculateRealValue = (nominalValue, dateString) => {
+    const cpiValue = getCPIValue(dateString);
+    if (!cpiValue) return null;
+    
+    const currentCPI = cpiData[0].value; // Most recent CPI value
+    return (nominalValue * currentCPI) / cpiValue;
   };
 
   const handleAddDeposit = () => {
@@ -162,25 +88,8 @@ const IsraeliInvestmentAnalyzer = () => {
     setDeposits(newDeposits);
   };
 
-  const adjustForInflation = (deposits, cpiData) => {
-    console.log("CPI data in adjustForInflation:", cpiData);
-    if (Object.keys(cpiData).length === 0) {
-      console.error("CPI data is not available");
-      return deposits;
-    }
-    
-    const getLatestCPI = () => {
-      if (useMonthlyData) {
-        const latestYear = Math.max(...Object.keys(cpiData).map(Number));
-        const latestMonth = Math.max(...Object.keys(cpiData[latestYear]).map(Number));
-        return cpiData[latestYear][latestMonth];
-      } else {
-        return Math.max(...Object.values(cpiData));
-      }
-    };
-    
-    const latestCPI = getLatestCPI();
-    console.log("Latest CPI:", latestCPI);
+  const adjustForInflation = (deposits) => {
+    console.log("Adjusting deposits for inflation");
     
     return deposits.flatMap((deposit) => {
       const depositYear = parseInt(deposit.year);
@@ -192,10 +101,22 @@ const IsraeliInvestmentAnalyzer = () => {
         let adjustedDeposits = [];
 
         for (let month = startMonth; month <= endMonth; month++) {
-          let depositCPI = cpiData[depositYear] && cpiData[depositYear][month] 
-            ? cpiData[depositYear][month] 
-            : latestCPI;
-          const adjustedAmount = amount * (latestCPI / depositCPI);
+          const monthStr = month.toString().padStart(2, '0');
+          const dateString = `${depositYear}-${monthStr}-01`;
+          console.log(`Looking for CPI value for date: ${month}/${depositYear}`);
+          
+          const cpiValue = getCPIValue(dateString);
+          console.log(`Found CPI value: ${cpiValue}`);
+          
+          if (!cpiValue) {
+            console.log(`No CPI value found for ${month}/${depositYear}`);
+            continue;
+          }
+          
+          const currentCPI = cpiData[0].value;
+          const adjustedAmount = amount * (currentCPI / cpiValue);
+          console.log(`Adjusted amount for ${month}/${depositYear}: ${adjustedAmount}`);
+          
           adjustedDeposits.push({
             year: depositYear,
             month,
@@ -204,8 +125,21 @@ const IsraeliInvestmentAnalyzer = () => {
         }
         return adjustedDeposits;
       } else {
-        let depositCPI = cpiData[depositYear] || latestCPI;
-        const adjustedAmount = amount * (latestCPI / depositCPI);
+        const dateString = `${depositYear}-01-01`;
+        console.log(`Looking for CPI value for date: 1/${depositYear}`);
+        
+        const cpiValue = getCPIValue(dateString);
+        console.log(`Found CPI value: ${cpiValue}`);
+        
+        if (!cpiValue) {
+          console.log(`No CPI value found for 1/${depositYear}`);
+          return [];
+        }
+        
+        const currentCPI = cpiData[0].value;
+        const adjustedAmount = amount * (currentCPI / cpiValue);
+        console.log(`Adjusted amount for 1/${depositYear}: ${adjustedAmount}`);
+        
         return [{
           year: depositYear,
           amount: adjustedAmount,
@@ -219,14 +153,16 @@ const IsraeliInvestmentAnalyzer = () => {
       (sum, deposit) => sum + deposit.amount,
       0
     );
-    const realGain = currentValue - adjustedTotalDeposited;
-  
+    
+    // Only calculate tax on the real gain
+    const realGain = Math.max(0, currentValue - adjustedTotalDeposited);
+    
     let taxRate = 0.25; // Default tax rate
     if (realGain > 721560) {
       taxRate = 0.28; // Higher tax rate for gains above 721,560 NIS
     }
-  
-    return realGain > 0 ? realGain * taxRate : 0;
+
+    return realGain * taxRate;
   };
 
   const calculateCurrentYield = (deposits, currentValue) => {
@@ -313,28 +249,16 @@ const IsraeliInvestmentAnalyzer = () => {
     return "Never";
   };
 
-  const calculateCurrentInvestment = async () => {
+  const calculateCurrentInvestment = () => {
     if (!validateCurrentInvestmentInputs()) {
       console.log("Validation errors:", errors);
       return;
     }
 
-    setIsLoading(true);
-
-    // Determine the year range for CPI data
-    const depositYears = deposits.map(d => parseInt(d.year));
-    const startYear = Math.min(...depositYears);
-    const endYear = new Date().getFullYear();
-
-    // Fetch CPI data
-    const fetchedCPIData = await fetchCPIData(startYear, endYear);
-    
-    console.log("Fetched CPI data:", fetchedCPIData);
-
     const currentValueNum = parseFloat(currentValue);
     console.log("Current Value Num:", currentValueNum);
   
-    const adjustedDeposits = adjustForInflation(deposits, fetchedCPIData);
+    const adjustedDeposits = adjustForInflation(deposits);
     console.log("Adjusted Deposits:", adjustedDeposits);
   
     const adjustedTotalDeposited = adjustedDeposits.reduce(
@@ -358,11 +282,9 @@ const IsraeliInvestmentAnalyzer = () => {
       taxAmount,
       availableMoneyForNewInvestment,
     });
-
-    setIsLoading(false);
   };
 
-  const compareNewInvestment = async () => {
+  const compareNewInvestment = () => {
     if (!validateNewInvestmentInputs()) return;
     if (!currentInvestmentResults) {
       setErrors({
@@ -370,14 +292,6 @@ const IsraeliInvestmentAnalyzer = () => {
       });
       return;
     }
-
-    // Determine the year range for CPI data
-    const depositYears = deposits.map(d => parseInt(d.year));
-    const startYear = Math.min(...depositYears);
-    const endYear = new Date().getFullYear() + parseInt(yearsToProject);
-
-    // Fetch CPI data
-    const fetchedCPIData = await fetchCPIData(startYear, endYear);
 
     console.log("--- Starting comparison calculations ---");
 
@@ -442,7 +356,7 @@ const IsraeliInvestmentAnalyzer = () => {
     const netNewProjection = [netCurrentInvestment];
 
     // Use adjusted deposits with fetchedCPIData
-    const adjustedTotalDeposits = adjustForInflation(deposits, fetchedCPIData).reduce(
+    const adjustedTotalDeposits = adjustForInflation(deposits).reduce(
       (sum, deposit) => sum + deposit.amount,
       0
     );
@@ -532,13 +446,9 @@ const IsraeliInvestmentAnalyzer = () => {
     return tooltipContent;
   };
   
-  useEffect(() => {
-    console.log("CPI data updated:", cpiData);
-  }, [cpiData]);
-  
-  const calculateNetAmount = (grossValue, initialValue, taxRate) => {
-    const realGain = grossValue - initialValue;
-    const taxAmount = realGain > 0 ? realGain * taxRate : 0;
+  const calculateNetAmount = (grossValue, adjustedTotalDeposits, taxRate) => {
+    const realGain = Math.max(0, grossValue - adjustedTotalDeposits);
+    const taxAmount = realGain * taxRate;
     return grossValue - taxAmount;
   };
   
@@ -872,8 +782,6 @@ const IsraeliInvestmentAnalyzer = () => {
           </ResponsiveContainer>
         </div>
       )}
-      {isLoading && <div className="loading">Loading...</div>}
-      {errors.api && <div className="error">{errors.api}</div>}
     </div>
   );
 };
